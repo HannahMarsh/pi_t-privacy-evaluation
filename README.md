@@ -8,7 +8,7 @@ This project aims to test the privacy guarantees of the $`\Pi_t`$ (_"t"_ for _"t
 was first described theoretically in [\[ALU24\]](#ALU24). The focus of this experiment is on modeling the adversary's ability
 to infer the location of message-bearing onions.
 
-<img src="img/onion-routing.png" alt="binomials" width="80%"/>
+<img src="img/onion-routing.png" alt="binomials" width="100%"/>
 
 ## Background
 
