@@ -67,6 +67,7 @@ that received a message-bearing onion from $C_1$.
  - The "advantage" is essentially a measure of how well the adversary can use the observed data to make correct assumptions about which client sent the onion.
  - This is ideally bounded by $e^\epsilon$.
 
+<img src="img/img.png" alt="binomials" width="500px"/>
 
 ## $\Pi_t$ Implementation Overview
 
