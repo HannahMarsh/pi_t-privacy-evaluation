@@ -1,7 +1,7 @@
 package structs
 
 import (
-	"github.com/HannahMarsh/pi_t-experiment/pkg/utils"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 )
 
 type Message struct {

@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	pl "github.com/HannahMarsh/PrettyLogger"
-	om "github.com/HannahMarsh/pi_t-experiment/internal/pi_t/onion_model"
+	om "github.com/HannahMarsh/pi_t-privacy-evaluation/internal/pi_t/onion_model"
 	"strings"
 )
 

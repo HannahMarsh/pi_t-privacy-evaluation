@@ -1,4 +1,4 @@
-module github.com/HannahMarsh/pi_t-experiment
+module github.com/HannahMarsh/pi_t-privacy-evaluation
 
 go 1.21
 

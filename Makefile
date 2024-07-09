@@ -7,32 +7,32 @@ run: run-product run-counter run-barista run-kitchen run-proxy run-web
 
 run-product:
 	cd cmd/product && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run github.com/HannahMarsh/pi_t-experiment/cmd/product
+	CGO_ENABLED=0 go run github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/product
 .PHONY: run-product
 
 run-counter:
 	cd cmd/counter && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-experiment/cmd/counter
+	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/counter
 .PHONY: run-counter
 
 run-barista:
 	cd cmd/barista && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-experiment/cmd/barista
+	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/barista
 .PHONY: run-barista
 
 run-kitchen:
 	cd cmd/kitchen && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-experiment/cmd/kitchen
+	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/kitchen
 .PHONY: run-kitchen
 
 run-proxy:
 	cd cmd/proxy && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-experiment/cmd/proxy
+	CGO_ENABLED=0 go run -tags migrate github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/proxy
 .PHONY: run-proxy
 
 run-web:
 	cd cmd/web && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run github.com/HannahMarsh/pi_t-experiment/cmd/web
+	CGO_ENABLED=0 go run github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/web
 .PHONY: run-web
 
 docker-compose: docker-compose-stop docker-compose-start

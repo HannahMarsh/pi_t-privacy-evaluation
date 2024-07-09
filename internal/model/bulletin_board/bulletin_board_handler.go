@@ -3,7 +3,7 @@ package bulletin_board
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/HannahMarsh/pi_t-experiment/internal/api/structs"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 	"golang.org/x/exp/slog"
 	"net/http"
 )

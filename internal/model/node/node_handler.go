@@ -2,8 +2,8 @@ package node
 
 import (
 	"encoding/json"
-	"github.com/HannahMarsh/pi_t-experiment/internal/api/api_functions"
-	"github.com/HannahMarsh/pi_t-experiment/internal/api/structs"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/api_functions"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 	"golang.org/x/exp/slog"
 	"net/http"
 )

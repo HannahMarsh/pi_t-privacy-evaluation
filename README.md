@@ -596,8 +596,8 @@ Installation (for development)
 Clone the repository:
 
 ```bash  
-git clone https://github.com/HannahMarsh/pi_t-experiment.git;
-cd pi_t-experiment
+git clone https://github.com/HannahMarsh/pi_t-privacy-evaluation.git;
+cd pi_t-privacy-evaluation
 ```
 
 Install dependencies:

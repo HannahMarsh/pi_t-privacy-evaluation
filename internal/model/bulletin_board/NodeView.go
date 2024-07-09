@@ -1,7 +1,7 @@
 package bulletin_board
 
 import (
-	"github.com/HannahMarsh/pi_t-experiment/internal/api/structs"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 	"sync"
 	"time"
 )

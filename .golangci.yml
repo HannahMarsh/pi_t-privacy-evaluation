@@ -1,6 +1,6 @@
 linters-settings:
   gci:
-    local-prefixes: github.com/HannahMarsh/pi_t-experiment
+    local-prefixes: github.com/HannahMarsh/pi_t-privacy-evaluation
   dupl:
     threshold: 100
   errorlint:
