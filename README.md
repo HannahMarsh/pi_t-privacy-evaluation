@@ -1,200 +1,72 @@
-# Implementing $\Pi_t$ :tulip:
+# Evaluating Privacy of the $\Pi_t$ Protocol :tulip:
 
-<details>
-<summary><h4><i>Table of Contents</i></h4></summary>
+## Introduction
 
-- [Roadmap](#roadmap)
-  * [Completed Tasks](#completed-tasks)
-  * [Pending Tasks](#todo-pending-tasks)
-- [Background](#background)
-- [Parameters](#parameters)
-- [No Global Clock](#no-global-clock)
-- [Session Keys](#session-keys)
-- [Tulip Bulb Structure](#tulip-bulb-structure)
-  * [ Header ($`H`$) ](#header-h)
-  * [ Content ($`C`$) ](#content-c)
-  * [ Sepal ($`S`$) ](#sepal-s)
-- [Node / Client Registration](#node--client-registration)
-- [Protocol:](#1-initialization)
-  * [Initialization](#1-initialization)
-  * [Mixing and Bruising](#3-mixing-and-bruising)
-  * [Intermediate Nodes](#4-intermediate-nodes)
-  * [Gatekeeping](#5-gatekeeping)
-  * [Final Destination](#6-final-destination)
-- [Adversary Simulation Framework](#adversary-simulation-framework)
-- [Notes](#notes)
-- [Endpoints](#endpoints)
-
-</details>
-
-### 
-
-## Roadmap
-
-<details>
-<summary><a name="completed-tasks"></a>Completed Tasks:</summary>
-
-#### Crypto Functions: :key:
-- [x] ECDH key generation.
-  - See [internal/pi\_t/keys/ecdh.go](internal/pi_t/tools/keys/ecdh.go)
-- [x] AES encryption/decryption functions.
-- [x] Pseudo-random functions `F1` and `F2`.
-  - See [internal/pi\_t/prf/prf.go](internal/pi_t/tools/prf/prf.go)
-- [x] Onion `FormOnion`, `PeelOnion`, and related functions.
-  - See [internal/pi\_t/pi\_t\_functions.go](internal/pi_t/pi_t_functions.go)
-
-#### Core Logic:
-
-###### Define Data Structures and Methods: :open_file_folder:
-- [x] Configuration for global parameters.
-  - See [config/config.yaml](config/config.yaml), [config/config.go](config/config.go)
-- [x] **_Node_** model and server entrypoint
-  - See [internal/model/node/node.go](internal/model/node/node.go)
-  - See [cmd/node/main.go](cmd/node/main.go)
-- [x] **_Client_** model and server entrypoint
-  - See [internal/model/client/client.go](internal/model/client/client.go)
-- [x] **_Bulletin board_** model and server entrypoint
-  - See [internal/model/bulletin\_board/bulletin\_board.go](internal/model/bulletin_board/bulletin_board.go)
-  - See [cmd/bulletin_board/main.go](cmd/bulletin_board/main.go)
-
-
-###### API Handling (`application/json` with `gzip`): :globe_with_meridians:
-- [x] Implement http endpoints for bulletin board (`\register_node`, `\heartbeat`, `\register_intent_to_send`, `\status`)
-  - See [internal/model/bulletin\_board/bulletin\_board_handler.go](internal/model/bulletin_board/bulletin_board_handler.go)
-- [x] Implement http endpoints for nodes (`\receive_onion`, `\start_run`, `\status`)
-  - See [internal/model/node/node_handler.go](internal/model/node/node_handler.go)
-- [x] Implement http endpoints for clients (`\receive_onion`, `\start_run`, `\status`)
-  - See [internal/model/client/client_handler.go](internal/model/client/client_handler.go) 
-- [x] Define json data structures for API requests and responses.
-  - See [internal/api/structs (dir)](internal/api/structs)
-- [x] Use gzip content-encoding for sending and receiving onions.
-  - See [internal/api/api_functions/functions.go](internal/api/api_functions/functions.go)
-
-
-###### Initialization: :clapper:
-- [x] Node registration and heartbeat mechanism.
-  - See `registerWithBulletinBoard()`: [internal/model/node/node.go](internal/model/node/node.go)
-- [x] Client message generation, register intent-to-send.
-  - See `registerIntentToSend()`: [internal/model/client/client.go](internal/model/client/client.go)
-- [x] Broadcast start signal from bulletin board.
-  - See `signalStart()`: [internal/model/bulletin\_board/bulletin\_board.go](internal/model/bulletin_board/bulletin_board.go)
-- [x] Clients and nodes receive start signal and initiate the run.
-  - See `startRun()`: [internal/model/node/node.go](internal/model/node/node.go)
-  - See `startRun()`: [internal/model/client/client.go](internal/model/client/client.go)
-
-
-###### Onion Processing: :chestnut:
-- [x] Keep track of number of checkpoint onions received and expected for each layer.
-- [x] Mixers: Receive, process, bruise, and forward onions.
-  - See `receiveOnion()`: [internal/model/node/node.go](internal/model/node/node.go)
-- [x] Gatekeepers: Receive, process, check number of bruises, drop or forward onions.
-  - See `receiveOnion()`: [internal/model/node/node.go](internal/model/node/node.go)
-- [x] Clients: For each queued message, construct an onion and all checkpoint onions (returned as a bool array, `j -> true/fasle: create checkpoint for layer j` by `FormOnion`)
-  - See `formOnions()` and corresponding methods (`determineRoutingPath()`, etc.): [internal/model/node/node.go](internal/model/node/node.go)
-- [x] Clients: Send onions to the first hop in the routing path.
-- [x] Clients: Receive onions from the last hop in the routing path.
-  - See `receiveOnion()`: [internal/model/client/client.go](internal/model/client/client.go)
-
-#### Metric Collection:
-
-###### Monitoring and Visualization: :bar_chart:
-- [x] Implement a program that periodically collects metrics from the `/status` endpoints of all nodes and clients.
-  - See [cmd/metrics/main.go](cmd/metrics/main.go)
-- [x] (used for debugging onion routing logic) Process and format data in tables, display in html
-  - See [static/pages/visualization/index.html](static/pages/visualization/index.html)
-  - See [static/pages/nodes/index.html](static/pages/nodes/index.html)
-  - See [static/pages/messages/index.html](static/pages/messages/index.html)
-  - See [static/pages/checkpoints/index.html](static/pages/checkpoints/index.html)
-  - See [static/pages/client/index.html](static/pages/client/index.html)
-  - See [static/pages/rounds/index.html](static/pages/rounds/index.html)
-
-
-#### Testing :test_tube:
-  
-- [x] Write unit tests for key generation.
-- [x] Write unit tests for onion formation and peeling.
-  - See [internal/pi\_t/pi\_t\_functions\_test.go](internal/pi_t/pi_t_functions_test.go)
-- [x] Test nonce verification.
-- [x] Integrate tests with CI pipeline.
-
-#### Documentation :blue_book:
-
-- [x] Update README with detailed descriptions of each module and function.
-- [x] Provide usage examples and setup instructions.
-- [x] Update roadmap with latest changes.
-
-</details>
-
-<details>
-<summary><a name="todo-pending-tasks"></a>TODO (Pending Tasks)</summary>
-
-#### Crypto / Onion Functions: :key:
-- [ ] Implement sepal / header / content onion layers (replacing all existing functions in [/internal/pi_t/pi_t_functions.go](/internal/pi_t/pi_t_functions.go)).
-- [ ] Instead of incrementing a bruise counter, handle multiple key slots that contain copies of the final decryption key.
-- [ ] Bulletin board should tell nodes (relays) which nonces to expect for each round.
-- [ ] Routing path needs to have all mixers first, then all gatekeepers (as opposed to a random mix besides the first and last nodes)].
-- [ ] l1 (number of mixers) and l2 (number of gatekeepers) should be fixed and given in the config file.
-- [ ] Fix logic in client during checkpoint onion construction. ( $`P_k \in Parties`$ is not a routing path, refer to section 5.2 in [Bruisable Onions](https://eprint.iacr.org/2024/885))
-- [ ] Replace CFB encryption/decryption with CTR ([/internal/pi_t/keys/ecdh.go](/internal/pi_t/tools/keys/ecdh.go))
-- [ ] Investigate benefits of replacing 255 curve with low-level 25519 ([/internal/pi_t/keys/ecdh.go](/internal/pi_t/tools/keys/ecdh.go))
-- [ ] Ensure that sepal block management does not reveal positional information.
-- [ ] Bug: Why are ~15% of nonce validations failing throughout the run? This results in about 5% of all onions being dropped (with $`d = 3`$ )
-
-#### Bulletin Board: :newspaper:
-- [ ] How does the bulletin board calculate the expected nonces for each node and for each round?
-- [ ] How does the bulletin board calculate which nonces to give to which clients for forming their onions?
-
-#### Client-Side: :bust_in_silhouette:
-- [ ] Calculate time window for when onion should arrive at each hop.
-
-#### Node-Side: :computer:
-- [ ] Bruising removes the left most key slot, not bruising removes right-most slot.
-- [ ] Local clock handling and synchronization.
-- [ ] Check if onion is late or the nonce is not in expected set, and add bruises if so.
-
-
-#### Documentation: :blue_book:
-- [ ] Update README where it is marked <span style="color: red;">TODO</span>
-
-#### Adversary Simulation: :trollface:
-- [ ] Implement functions to simulate adversarial behaviors.
-- [ ] Add configuration parameters to control these actions.
-- [ ] Collect and analyze data on the adversary’s view.
-- [ ] Verify differential privacy guarantees by comparing adversary views.
-- [ ] Calculate empirical probability of adversary’s view for dataset pairs.
-
-#### Test in a Distributed Environment
-- [ ] Look into [cloudlab](https://cloudlab.us/) for deploying
-
-</details>
+This project aims to test the privacy guarantees of the $`\Pi_t`$ (_"t"_ for _"tulip"_ or _"threshold"_) protocol, which
+was first described theoretically in [\[ALU24\]](#ALU24). The focus of this experiment is on modeling the adversary's ability
+to infer the location of message-bearing onions.
 
 ## Background
 
-A communication protocol achieves anonymity if no attacker can distinguish who is communicating with whom based on 
-observable data such as network traffic. Onion routing is a well-established technique for achieving anonymity, where messages 
-are encapsulated in layers of encryption and sent through a series of intermediary nodes (relays). However, onion routing 
-_alone_ does not protect against adversaries who can observe all network traffic, such as AS-level or ISP-level attackers.
+[Differential privacy](#DMNS06) is a mathematical framework for ensuring that the results of data analysis do not reveal any specific individual's data.
 
-Mix networks (or _mixnets_) enhance onion routing by mixing messages at each relay, making it harder for adversaries to 
-correlate incoming and outgoing messages. Various mixnet architectures have been proposed, including
-[Vuvuzela](#vdHLZZ15) and [Stadium](#TGL-17). Despite their strong anonymity guarantees, these
-solutions assume synchronous communication, where time progresses in rounds, and message transmissions are lossless 
-and instantaneous. In practice, however, network communication is asynchronous and thus adversaries can exploit timing 
-discrepancies to correlate messages entering and leaving the network.
+In the context of $`\Pi_t`$ and other onion routing protocols, a more nuanced form of differential privacy, called [ _($`\epsilon`$, $`\delta`$)-Differential Privacy_ ](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf), ensures that an adversary observing network traffic cannot (with high confidence)
+distinguish between two neighboring communication patterns. This means that the inclusion or exclusion of a single individual's data does not significantly affect the outcome of any analysis.
 
-$`\Pi_t`$ (_"t"_ for _"tulip"_ or _"threshold"_), is the first provably anonymous onion 
-routing protocol for the asynchronous communications setting. As described in [\[ALU24\]](#ALU24), this protocol introduces 
-several novel concepts such as [checkpoint onions]() and [bruising]().
-Theoretical analysis demonstrates that $\Pi_t$ can provide differential privacy (a slightly weaker guarantee than anonymity) even under strong 
-adversarial models. This means the adversary's view when Alice sends a message to Bob is statistically close to the 
-view when Alice sends a message to Carol instead. This analysis assumes a peer-to-peer network where nodes must discover each other, exchange keys, and
-manage communication paths independently. Unfortunately this leads to several practical challenges such as increased complexity, lower fault tolerance,
-and inconsistent security enforcement.
+Epsilon ($`\epsilon`$) and delta ($`\delta`$) are the parameters that define our _($`\epsilon`$, $`\delta`$)-differential privacy_ guarantees:
+- **$\epsilon$**: A non-negative parameter that bounds the multiplicative difference in probabilities of any outcome
+  occurring whether an individual's data is included or not. Smaller values of $`\epsilon`$ indicate stronger privacy guarantees.
+- **$\delta$**: A non-negative parameter that bounds the additive difference in probabilities, allowing for a small
+  probability of error. Smaller values of $`\delta`$ also indicate stronger privacy guarantees.
 
-This project aims to transition $`\Pi_t`$ to a service-model environment by introducing a fault-tolerant bulletin board that maintains a 
-consistent view of all active relays and coordinates the start of a run. Our objective is to explore its performance
-under various conditions, and so we will conduct experiments to determine the minimum number of rounds required for a given 
-server load and desired parameters $\epsilon$ and $\delta$.
+Formally, a randomized algorithm or mechanism is _($`\epsilon`$, $`\delta`$)-differentially private_ if for every pair of neighboring inputs
+$`\sigma_0`$ and $`\sigma_1`$ and for every set $`\mathcal{V}`$ of adversarial views,
+
+$$
+\Pr[\text{View}^{\mathcal{A}}(\sigma_0) \in \mathcal{V}] \leq e^{\epsilon} \cdot \Pr[\text{View}^{\mathcal{A}}(\sigma_1) \in \mathcal{V}] + \delta
+$$
+
+## Experiment Setup
+
+- Clients, $\[C_1...C_N\]$
+  - We will choose target senders, $C_1$ and $C_2$
+- Relays, $\[R_1...R_N\]$
+- Adversary, $`\mathcal{A}`$
+  - The adversary always drops onions from $C_1$
+  - $`\mathcal{A}`$'s observables, $\text{View}(\sigma_i)$, for a scenario, $i$, include the number of onions sent and received by each client and node.
+    - Let $O_{k,i}$ be the distribution (over many executions of scenario $i$) of the number of onions that client $C_k$ receives by the end of the run.
+
+### Senarios
+
+- We consider two neighboring scenarios for our experiment:
+   - **Scenario 0 ($\sigma_0$)**:
+      - $C_1$ sends a message to $C_N$
+      - $C_2$ sends a message to $C_{N-1}$
+   - **Scenario 1 ($\sigma_1$)**:
+      - $C_1$ sends a message to $C_{N-1}$
+      - $C_2$ sends a message to $C_N$
+
+- In both scenarios, there are also dummy (checkpoint) onions to provide cover traffic.
+- For example, in Scenario 1 where $C_2$ sends a message to $C_N$, the number of onions, $O_N$, received by $C_N$ will be shifted to the right by 1 compared to
+  $O_{N-1}$ since $C_{N-1}$'s onion was dropped by $`\mathcal{A}`$.
+
+### Adversary's Task
+
+The adversary observes the network volume (number of onions each client and node are sending and receiving). Each round, the adversary updates the
+probability distribution of where the message-bearing onion is likely located. The adversary's goal is to determine the most probable client $\[C_2...C_N\]$
+that received a message-bearing onion from $C_1$.
+
+### _Bad_ and _Good_ Events
+
+- A "Bad event" is defined as when either $O_{N-1}$ or $O_{N}$ are "far away" from their expected values.
+- Conversely, a "Good event" is when both are "close" to their expected values.
+
+### Computing the Adversary's Advantage
+
+- We aim to compute the ratio that the adversary is correct (i.e., the "advantage"). 
+ - The "advantage" is essentially a measure of how well the adversary can use the observed data to make correct assumptions about which client sent the onion.
+ - This is ideally bounded by $e^\epsilon$.
+
 
 ## $\Pi_t$ Implementation Overview
 
@@ -688,14 +560,14 @@ Obviously, it is not recommended to run the visualization program once we deploy
 ### References
 
 - <a name="ALU24"></a>[\[ALU24\]](https://ia.cr/2024/885) - Ando M, Lysyanskaya A, Upfal E. Bruisable Onions: Anonymous Communication in the 
-Asynchronous Model. _Cryptology ePrint Archive_. 2024.
-  - [Link to PDF](https://eprint.iacr.org/2024/885.pdf)
+Asynchronous Model. _Cryptology ePrint Archive_. 2024. ([Link to PDF](https://eprint.iacr.org/2024/885.pdf))
+- <a name="DMNS06"></a>[\[DMNS06\]](https://people.csail.mit.edu/asmith/PS/sensitivity-tcc-final.pdf) -  Cynthia Dwork, Frank McSherry, Kobbi Nissim, and Adam Smith. Calibrating noise
+  to sensitivity in private data analysis. In Shai Halevi and Tal Rabin, editors, _TCC 2006_, volume 3876 of _LNCS_, pages 265–284. Springer,
+  Heidelberg, Germany, New York, NY, USA, March 4–7, 2006. ([Link to PDF](https://people.csail.mit.edu/asmith/PS/sensitivity-tcc-final.pdf))
 - <a name="TGL-17"></a>[\[TGL+17\]](https://doi.org/10.1145/3132747.3132783) - Nirvan Tyagi, Yossi Gilad, Derek Leung, 
   Matei Zaharia, and Nickolai Zeldovich. Stadium: A distributed metadata-private messaging system. In Proceedings of the 26th
-  Symposium on Operating Systems Principles, Shanghai, China, October 28-31, 2017, pages 423–440. ACM, 2017.
-  - [Link to PDF](https://dl.acm.org/doi/pdf/10.1145/3132747.3132783)
+  Symposium on Operating Systems Principles, Shanghai, China, October 28-31, 2017, pages 423–440. ACM, 2017. ([Link to PDF](https://dl.acm.org/doi/pdf/10.1145/3132747.3132783))
 - <a name="vdHLZZ15"></a>[\[vdHLZZ15\]](https://doi.org/10.1145/2815400.2815417) - Jelle van den Hooff, David Lazar, Matei Zaharia, and Nickolai Zeldovich. Vuvuzela: scalable private 
   messaging resistant to traffic analysis. In Ethan L. Miller and Steven Hand, editors, Proceedings of the 25th Symposium 
-  on Operating Systems Principles, SOSP 2015, Monterey, CA, USA, October 4-7, 2015, pages 137–152. ACM, 2015.
-  - [Link to PDF](https://dl.acm.org/doi/pdf/10.1145/2815400.2815417)
+  on Operating Systems Principles, SOSP 2015, Monterey, CA, USA, October 4-7, 2015, pages 137–152. ACM, 2015. ([Link to PDF](https://dl.acm.org/doi/pdf/10.1145/2815400.2815417))
 
