@@ -6,9 +6,13 @@
 
 This project aims to test the privacy guarantees of the $`\Pi_t`$ (_"t"_ for _"tulip"_ or _"threshold"_) protocol, which
 was first described theoretically in [\[ALU24\]](#ALU24). The focus of this experiment is on modeling the adversary's ability
-to infer the location of message-bearing onions.
+to infer the location of message-bearing onions.  
+&nbsp;
 
-<img src="img/onion-routing.png" alt="binomials" width="100%"/>
+<figure>
+  <figcaption><em>Figure 1 - Onion Routing Visualization</em></figcaption>
+  <img src="img/onion-routing.png" alt="binomials" width="100%"/>
+</figure>
 
 ## Background
 
