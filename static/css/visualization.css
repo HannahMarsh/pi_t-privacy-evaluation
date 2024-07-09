@@ -1,0 +1,163 @@
+body {
+    font-family: Arial, sans-serif;
+
+}
+
+#visualization-container {
+    width: 100%;
+    position: relative;
+}
+
+#scroll-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 300px;
+    overflow-x: scroll;
+    overflow-y: scroll;
+    background-color: #f2f2f2;
+}
+
+#arrows {
+    /*display: flex;*/
+    /*flex-wrap: nowrap;*/
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    /*width: 100%;*/
+    /*height: 100%;*/
+    pointer-events: none;
+}
+
+.arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 10px solid black;
+}
+
+#visualization {
+    display: flex;
+    flex-wrap: nowrap;
+    z-index: 0;
+    /*overflow-x: auto;*/
+    /*overflow-y: hidden;*/
+    /*white-space: nowrap;*/
+}
+
+#rounds {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+
+.round-table {
+    display: inline-block;
+    margin-top: 0;
+    margin-bottom: 20px;
+    margin-left: 20px;
+    margin-right: 20px;
+    vertical-align: top;
+}
+
+table {
+    /*width: 300px;*/
+    border-collapse: collapse;
+}
+
+table, th, td {
+    border: 1px solid black;
+}
+
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+
+th {
+    background-color: #e7e7e7;
+}
+
+td {
+    background-color: #ffffff;
+    max-width: 160px;
+    font-size: smaller;
+    word-break: break-word;
+}
+
+td.mixer:not(.temp-yellow):not(.temp-yellow *) {
+    background-color: #e4ffec;
+}
+
+td.gatekeeper:not(.temp-yellow):not(.temp-yellow *) {
+    background-color: rgba(196, 255, 255, 0.76);
+
+}
+
+
+
+.onion, .message {
+    min-width: 100px;
+    font-size: x-small;
+}
+
+/*.arrow {*/
+/*    position: absolute;*/
+/*    width: 0;*/
+/*    height: 0;*/
+/*    border-left: 5px solid transparent;*/
+/*    border-right: 5px solid transparent;*/
+/*    border-top: 10px solid black;*/
+/*}*/
+
+.nav-buttons {
+    margin-bottom: 20px;
+}
+
+.nav-buttons a {
+    text-decoration: none;
+    margin-right: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.nav-buttons a:hover {
+    background-color: #0056b3;
+}
+
+.round-table td:hover {
+    background-color: #dadada; /* Change background color on hover */
+    position: relative; /* Required for the popup positioning */
+}
+
+.popup {
+    position: fixed;
+    top: 160px;
+    left: 10px;
+    background-color: rgba(222, 220, 239, 0.93);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    pointer-events: none; /* Make the popup non-interactive */
+}
+
+.popup.visible {
+    opacity: 1;
+    pointer-events: auto; /* Make the popup interactive */
+}
+
+.temp-yellow {
+    background-color: #ffff61;
+}
