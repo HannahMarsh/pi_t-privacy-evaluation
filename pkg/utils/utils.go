@@ -113,9 +113,9 @@ func DropFromRight[T any](elements []T, n int) []T {
 
 var r = rng.New(rng.NewSource(time.Now().UnixNano()))
 
-func RandomElement[T any](elements []T) (element T, index int) {
-	index = r.Intn(len(elements))
-	return elements[index], index
+func RandomElement[T any](elements []T) (element T) {
+	index := r.Intn(len(elements))
+	return elements[index]
 }
 
 func Min[T constraints.Ordered](a, b T) T {

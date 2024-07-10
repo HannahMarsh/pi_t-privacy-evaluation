@@ -4,63 +4,41 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/api_functions"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/pi_t/onion_model"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/pi_t/tools/keys"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
+	"golang.org/x/exp/slog"
 	"io"
 	"net/http"
 	"sync"
-	"time"
-
-	pl "github.com/HannahMarsh/PrettyLogger"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/pi_t"
-	"golang.org/x/exp/slog"
 )
 
 // Node represents a node in the onion routing network
 type Node struct {
-	ID                  int
-	Host                string
-	Port                int
-	PrivateKey          string
-	PublicKey           string
-	isMixer             bool
-	mu                  sync.RWMutex
-	BulletinBoardUrl    string
-	lastUpdate          time.Time
-	status              *structs.NodeStatus
-	checkpoints         map[int]int
-	expectedCheckpoints [][]int
+	ID               int
+	Host             string
+	Port             int
+	Address          string
+	mu               sync.RWMutex
+	BulletinBoardUrl string
+	status           *structs.NodeStatus
 }
 
 // NewNode creates a new node
-func NewNode(id int, host string, port int, bulletinBoardUrl string, isMixer bool) (*Node, error) {
-	if privateKey, publicKey, err := keys.KeyGen(); err != nil {
-		return nil, pl.WrapError(err, "node.NewClient(): failed to generate key pair")
-	} else {
-		n := &Node{
-			ID:                  id,
-			Host:                host,
-			Port:                port,
-			PublicKey:           publicKey,
-			PrivateKey:          privateKey,
-			BulletinBoardUrl:    bulletinBoardUrl,
-			isMixer:             isMixer,
-			status:              structs.NewNodeStatus(id, fmt.Sprintf("http://%s:%d", host, port), publicKey, isMixer),
-			checkpoints:         make(map[int]int),
-			expectedCheckpoints: make([][]int, 0),
-		}
-		if err2 := n.RegisterWithBulletinBoard(); err2 != nil {
-			return nil, pl.WrapError(err2, "node.NewNode(): failed to register with bulletin board")
-		}
-
-		go n.StartPeriodicUpdates(time.Second * 3)
-
-		return n, nil
+func NewNode(id int, host string, port int, bulletinBoardUrl string) (*Node, error) {
+	n := &Node{
+		ID:               id,
+		Host:             host,
+		Port:             port,
+		Address:          fmt.Sprintf("http://%s:%d", host, port),
+		BulletinBoardUrl: bulletinBoardUrl,
+		status:           structs.NewNodeStatus(id, fmt.Sprintf("http://%s:%d", host, port)),
 	}
+	if err2 := n.RegisterWithBulletinBoard(); err2 != nil {
+		return nil, pl.WrapError(err2, "node.NewNode(): failed to register with bulletin board")
+	}
+	return n, nil
 }
 
 func (n *Node) GetStatus() string {
@@ -69,93 +47,43 @@ func (n *Node) GetStatus() string {
 
 func (n *Node) getPublicNodeInfo() structs.PublicNodeApi {
 	return structs.PublicNodeApi{
-		ID:        n.ID,
-		Address:   fmt.Sprintf("http://%s:%d", n.Host, n.Port),
-		PublicKey: n.PublicKey,
-		Time:      time.Now(),
-		IsMixer:   n.isMixer,
+		ID:      n.ID,
+		Address: fmt.Sprintf("http://%s:%d", n.Host, n.Port),
 	}
 }
 
-func (n *Node) StartPeriodicUpdates(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	go func() {
-		for range ticker.C {
-			//slog.Info("Updating bulletin board")
-			if err := n.updateBulletinBoard("/updateNode", http.StatusOK); err != nil {
-				fmt.Printf("Error updating bulletin board: %v\n", err)
-				return
-			}
-		}
-	}()
+func (n *Node) startRun(start structs.StartRunAPI) {
+	slog.Info("Starting run", "num clients", len(start.Clients), "num nodes", len(start.Nodes))
 }
 
-func (n *Node) startRun(start structs.NodeStartRunApi) (didParticipate bool, e error) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	n.expectedCheckpoints = start.Checkpoints
-
-	for _, c := range n.checkpoints {
-		n.status.AddExpectedCheckpoint(c)
+func (n *Node) Receive(o structs.Onion) error {
+	if o.To != fmt.Sprintf("http://%s:%d", n.Host, n.Port) {
+		return pl.NewError("node.Receive(): onion not meant for this node")
 	}
 
-	//n.wg.Wait()
-	//n.wg.Add(1)
-	//defer n.wg.Done()
-	return true, nil
-}
-
-func (n *Node) Receive(from string, o string, sharedKey [32]byte) error {
-	layer, metadata, peeled, nextHop, err := pi_t.PeelOnion(o, sharedKey)
+	slog.Info("Received onion", "from", config.AddressToName(o.From), "layer", o.Layer)
+	peeled, _, err := o.Peel()
 	if err != nil {
-		return pl.WrapError(err, "node.Receive(): failed to remove layer")
+		return pl.WrapError(err, "node.Receive(): failed to peel onion")
 	}
 
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	go n.status.AddOnion(o.From, n.Address, peeled.To, o.Layer, false)
 
-	if metadata.Nonce != -1 {
-		if utils.Contains(n.expectedCheckpoints[layer], func(i int) bool {
-			return i == metadata.Nonce
-		}) { // nonce is verified
-			n.checkpoints[layer]++
-			if n.isMixer {
-				peeled.Sepal.RemoveBlock()
-			}
-		} else {
-			if n.isMixer {
-				peeled.Sepal.AddBruise()
-			}
-		}
-
-		n.status.AddCheckpointOnion(layer)
+	if err = api_functions.SendOnion(peeled); err != nil {
+		return pl.WrapError(err, "node.Receive(): failed to send to next node")
 	}
-
-	slog.Info("Received onion", "ischeckpoint?", metadata.Nonce != -1, "layer", layer, "nextHop", config.AddressToName(nextHop))
-
-	n.status.AddOnion(from, fmt.Sprintf("http://%s:%d", n.Host, n.Port), nextHop, layer, metadata.Nonce != -1)
-
-	if err3 := n.sendToNode(nextHop, peeled); err != nil {
-		return pl.WrapError(err3, "node.Receive(): failed to send to next node")
-	}
-
-	return nil
-}
-
-func (n *Node) sendToNode(addr string, constructedOnion onion_model.Onion) error {
-	go func() {
-		err := api_functions.SendOnion(addr, fmt.Sprintf("http://%s:%d", n.Host, n.Port), constructedOnion)
-		if err != nil {
-			slog.Error("Error sending onion", err)
-		}
-	}()
 	return nil
 }
 
 func (n *Node) RegisterWithBulletinBoard() error {
 	slog.Info("Sending node registration request.", "id", n.ID)
-	return n.updateBulletinBoard("/registerNode", http.StatusCreated)
+	err := n.updateBulletinBoard("/registerNode", http.StatusCreated)
+	if err != nil {
+		return pl.WrapError(err, "node.RegisterWithBulletinBoard(): failed to register node")
+	} else {
+		slog.Info("Node successfully registered with bulletin board", "id", n.ID)
+	}
+	return nil
 }
 
 func (n *Node) GetActiveNodes() ([]structs.PublicNodeApi, error) {
@@ -185,13 +113,9 @@ func (n *Node) GetActiveNodes() ([]structs.PublicNodeApi, error) {
 func (n *Node) updateBulletinBoard(endpoint string, expectedStatusCode int) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	t := time.Now()
 	if data, err := json.Marshal(structs.PublicNodeApi{
-		ID:        n.ID,
-		Address:   fmt.Sprintf("http://%s:%d", n.Host, n.Port),
-		PublicKey: n.PublicKey,
-		IsMixer:   n.isMixer,
-		Time:      t,
+		ID:      n.ID,
+		Address: fmt.Sprintf("http://%s:%d", n.Host, n.Port),
 	}); err != nil {
 		return pl.WrapError(err, "node.UpdateBulletinBoard(): failed to marshal node info")
 	} else {
@@ -207,8 +131,6 @@ func (n *Node) updateBulletinBoard(endpoint string, expectedStatusCode int) erro
 			}(resp.Body)
 			if resp.StatusCode != expectedStatusCode {
 				return pl.NewError("failed to %s node, status code: %d, %s", endpoint, resp.StatusCode, resp.Status)
-			} else {
-				n.lastUpdate = t
 			}
 			return nil
 		}

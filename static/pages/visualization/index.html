@@ -172,7 +172,12 @@
 
             Object.entries(data.Nodes).forEach(([nodeAddress, status]) => {
                 let node = status.Node.ID
-                let onions = onionsPerRound[round][node] || [];
+                let onions;
+                if (onionsPerRound[round] && onionsPerRound[round][node]) {
+                    onions = onionsPerRound[round][node];
+                } else {
+                    onions = [];  // Default to an empty array if not found
+                }
 
                 if (onions.length > 0) {
                     const firstOnion = onions[0];

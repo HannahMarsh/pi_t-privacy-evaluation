@@ -1,19 +1,39 @@
 package structs
 
 import (
-	"time"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 )
 
 type PublicNodeApi struct {
-	ID        int
-	Address   string
-	PublicKey string
-	IsMixer   bool
-	Time      time.Time
+	ID      int
+	Address string
 }
 
-type IntentToSend struct {
-	From PublicNodeApi
-	To   []PublicNodeApi
-	Time time.Time
+func GetPublicNodeApi(address string) PublicNodeApi {
+	if nodeCfg := utils.Find(config.GlobalConfig.Nodes, func(node config.Node) bool {
+		return node.Address == address
+	}); nodeCfg != nil {
+		return PublicNodeApi{
+			ID:      nodeCfg.ID,
+			Address: address,
+		}
+	}
+	return PublicNodeApi{
+		Address: address,
+	}
+}
+
+func GetPublicNodeApiFromID(id int) PublicNodeApi {
+	if nodeCfg := utils.Find(config.GlobalConfig.Nodes, func(node config.Node) bool {
+		return node.ID == id
+	}); nodeCfg != nil {
+		return PublicNodeApi{
+			ID:      nodeCfg.ID,
+			Address: nodeCfg.Address,
+		}
+	}
+	return PublicNodeApi{
+		ID: id,
+	}
 }

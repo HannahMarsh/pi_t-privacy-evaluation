@@ -51,20 +51,10 @@ func main() {
 
 	slog.Info("⚡ init Bulletin board")
 
-	bulletinBoard := bulletin_board.NewBulletinBoard(cfg)
-
-	go func() {
-		err := bulletinBoard.StartRuns()
-		if err != nil {
-			slog.Error("failed to start runs", err)
-			config.GlobalCancel()
-		}
-	}()
+	bulletinBoard := bulletin_board.NewBulletinBoard()
 
 	http.HandleFunc("/registerNode", bulletinBoard.HandleRegisterNode)
 	http.HandleFunc("/registerClient", bulletinBoard.HandleRegisterClient)
-	http.HandleFunc("/registerIntentToSend", bulletinBoard.HandleRegisterIntentToSend)
-	http.HandleFunc("/updateNode", bulletinBoard.HandleUpdateNodeInfo)
 
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {

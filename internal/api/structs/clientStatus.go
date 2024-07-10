@@ -2,7 +2,7 @@ package structs
 
 import (
 	"encoding/json"
-	"github.com/HannahMarsh/PrettyLogger"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
 	"sync"
 	"time"
@@ -27,21 +27,20 @@ type Received struct {
 	TimeReceived time.Time
 }
 
-func NewClientStatus(id int, address, publicKey string) *ClientStatus {
+func NewClientStatus(id int, address string) *ClientStatus {
 	return &ClientStatus{
 		MessagesSent:     make([]Sent, 0),
 		MessagesReceived: make([]Received, 0),
 		Client: PublicNodeApi{
-			ID:        id,
-			Address:   address,
-			PublicKey: publicKey,
-			Time:      time.Now(),
-			IsMixer:   false,
+			ID:      id,
+			Address: address,
 		},
 	}
 }
 
-func (cs *ClientStatus) AddSent(clientReceiver PublicNodeApi, routingPath []PublicNodeApi, message Message) {
+func (cs *ClientStatus) AddSent(message Message, path []string) {
+	routingPath := utils.Map(path, GetPublicNodeApi)
+	clientReceiver := utils.GetLast(routingPath)
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 	cs.MessagesSent = append(cs.MessagesSent, Sent{
@@ -61,7 +60,6 @@ func (cs *ClientStatus) AddReceived(message Message) {
 		Message:      message,
 		TimeReceived: time.Now(),
 	})
-	slog.Info(PrettyLogger.GetFuncName(), "message", message)
 }
 
 func (cs *ClientStatus) GetStatus() string {

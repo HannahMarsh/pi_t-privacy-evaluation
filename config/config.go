@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,6 +13,13 @@ import (
 	"github.com/HannahMarsh/PrettyLogger"
 	"github.com/ilyakaznacheev/cleanenv"
 )
+
+type Adversary struct {
+	Gamma  float64 `yaml:"gamma"`
+	Chi    float64 `yaml:"chi"`
+	Theta  float64 `yaml:"theta"`
+	NodeID int     `yaml:"nodeID"`
+}
 
 type BulletinBoard struct {
 	Host    string `yaml:"host"`
@@ -24,7 +32,6 @@ type Node struct {
 	Host    string `yaml:"host"`
 	Port    int    `yaml:"port"`
 	Address string
-	IsMixer bool `yaml:"is_mixer"`
 }
 
 type Client struct {
@@ -40,22 +47,41 @@ type Metrics struct {
 	Address string
 }
 
+type Scenario struct {
+	Name     string    `yaml:"name"`
+	Messages []Message `yaml:"messages"`
+}
+
+type Message struct {
+	From    int    `yaml:"from"`
+	To      int    `yaml:"to"`
+	Content string `yaml:"content"`
+}
+
 type Config struct {
-	ServerLoad        int           `yaml:"server_load"`
-	D                 int           `yaml:"d"`
-	HeartbeatInterval int           `yaml:"heartbeat_interval"`
-	MinNodes          int           `yaml:"min_nodes"`
-	Epsilon           float64       `yaml:"epsilon"`
-	Delta             float64       `yaml:"delta"`
-	L1                int           `yaml:"l1"`
-	L2                int           `yaml:"l2"`
-	Rounds            int           `yaml:"num_rounds"`
-	MinTotalMessages  int           `yaml:"min_total_messages"`
-	BulletinBoard     BulletinBoard `yaml:"bulletin_board"`
-	Nodes             []Node        `yaml:"nodes"`
-	Metrics           Metrics       `yaml:"metrics"`
-	Clients           []Client      `yaml:"clients"`
-	MaxBruises        int           `yaml:"max_bruises"`
+	Epsilon       float64       `yaml:"epsilon"`
+	Delta         float64       `yaml:"delta"`
+	L             int           `yaml:"L"`
+	N             int           `yaml:"N"`
+	R             int           `yaml:"R"`
+	D             int           `yaml:"D"`
+	BulletinBoard BulletinBoard `yaml:"bulletin_board"`
+	Nodes         []Node        `yaml:"nodes"`
+	Metrics       Metrics       `yaml:"metrics"`
+	Clients       []Client      `yaml:"clients"`
+	Adversary     Adversary     `yaml:"adversary"`
+	Scenarios     []Scenario    `yaml:"scenarios"`
+}
+
+func (cnfg *Config) GetClientAddress(id int) string {
+	if f := utils.Find(cnfg.Clients, func(client Client) bool {
+		return client.ID == id
+	}); f != nil {
+		return f.Address
+	} else {
+		PrettyLogger.LogNewError("Client not found with id=%d", id)
+		return ""
+	}
 }
 
 var GlobalConfig *Config
@@ -63,27 +89,21 @@ var GlobalCtx context.Context
 var GlobalCancel context.CancelFunc
 var Names sync.Map
 
-func InitGlobal() error {
+func InitGlobal() (err error) {
 	GlobalCtx, GlobalCancel = context.WithCancel(context.Background())
-
 	GlobalConfig = &Config{}
+	scenarios := &Config{}
 
-	if dir, err := os.Getwd(); err != nil {
+	if err, scenarios = readConfig(scenarios, "scenarios.yml"); err != nil {
 		return PrettyLogger.WrapError(err, "config.NewConfig(): global config error")
-	} else if err2 := cleanenv.ReadConfig(dir+"/config/config.yml", GlobalConfig); err2 != nil {
-		// Get the absolute path of the current file
-		_, currentFile, _, ok := runtime.Caller(0)
-		if !ok {
-			return PrettyLogger.NewError("Failed to get current file path")
-		}
-		currentDir := filepath.Dir(currentFile)
-		configFilePath := filepath.Join(currentDir, "/config.yml")
-		if err3 := cleanenv.ReadConfig(configFilePath, GlobalConfig); err3 != nil {
-			return PrettyLogger.WrapError(err3, "config.NewConfig(): global config error")
-		}
-	} else if err3 := cleanenv.ReadEnv(GlobalConfig); err3 != nil {
-		return PrettyLogger.WrapError(err3, "config.NewConfig(): global config error")
 	}
+	if err, GlobalConfig = readConfig(GlobalConfig, "config.yml"); err != nil {
+		return PrettyLogger.WrapError(err, "config.NewConfig(): global config error")
+	}
+	if err = cleanenv.ReadEnv(GlobalConfig); err != nil {
+		return PrettyLogger.WrapError(err, "config.NewConfig(): global config error")
+	}
+
 	// Update node addresses
 	for i := range GlobalConfig.Nodes {
 		GlobalConfig.Nodes[i].Address = fmt.Sprintf("http://%s:%d", GlobalConfig.Nodes[i].Host, GlobalConfig.Nodes[i].Port)
@@ -93,10 +113,29 @@ func InitGlobal() error {
 	for i := range GlobalConfig.Clients {
 		GlobalConfig.Clients[i].Address = fmt.Sprintf("http://%s:%d", GlobalConfig.Clients[i].Host, GlobalConfig.Clients[i].Port)
 	}
-
 	GlobalConfig.BulletinBoard.Address = fmt.Sprintf("http://%s:%d", GlobalConfig.BulletinBoard.Host, GlobalConfig.BulletinBoard.Port)
 	GlobalConfig.Metrics.Address = fmt.Sprintf("http://%s:%d", GlobalConfig.Metrics.Host, GlobalConfig.Metrics.Port)
+	GlobalConfig.Scenarios = scenarios.Scenarios
+
+	GlobalConfig.Nodes = GlobalConfig.Nodes[:GlobalConfig.N]
+	GlobalConfig.Clients = GlobalConfig.Clients[:GlobalConfig.R]
 	return nil
+}
+
+func readConfig(cfg *Config, file string) (error, *Config) {
+	// path = "/config/config.yml"
+	var dir string
+	var err error
+	if dir, err = os.Getwd(); err != nil {
+		return PrettyLogger.WrapError(err, "config.NewConfig(): global config error"), nil
+	} else if err = cleanenv.ReadConfig(dir+"/config/"+file, cfg); err != nil {
+		if _, currentFile, _, ok := runtime.Caller(0); !ok { // Get the absolute path of the current file
+			return PrettyLogger.NewError("Failed to get current file path"), nil
+		} else if err = cleanenv.ReadConfig(filepath.Join(filepath.Dir(currentFile), "/"+file), cfg); err != nil {
+			return PrettyLogger.WrapError(err, "config.NewConfig(): global config error"), nil
+		}
+	}
+	return nil, cfg
 }
 
 func HostPortToName(host string, port int) string {

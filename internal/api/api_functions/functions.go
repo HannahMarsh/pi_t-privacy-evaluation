@@ -3,26 +3,16 @@ package api_functions
 import (
 	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/pi_t/onion_model"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
 	"io"
 	"net/http"
-	"sync"
 	"time"
-)
-
-var (
-	queue         map[string][]item = make(map[string][]item)
-	mu            sync.Mutex
-	channel       chan bool = make(chan bool)
-	startedWorker bool
 )
 
 type item struct {
@@ -32,87 +22,10 @@ type item struct {
 	result chan error
 }
 
-//func workerThread() {
-//	mu.Lock()
-//	var wg sync.WaitGroup
-//	for {
-//		for len(queue) == 0 {
-//			mu.Unlock()
-//			<-channel
-//			wg.Wait()
-//			mu.Lock()
-//		}
-//		for to, items := range queue {
-//			items := items
-//			delete(queue, to)
-//			for _, i := range items {
-//				wg.Add(1)
-//				go func() {
-//					defer wg.Done()
-//
-//					if err := SendOnion2(i.to, i.from, i.onion); err != nil {
-//						slog.Error("Error sending onion", err)
-//						i.result <- err
-//					} else {
-//						i.result <- nil
-//					}
-//				}()
-//			}
-//		}
-//	}
-//}
-//
-//func SendOnion(to, from, onionStr string) error {
-//	var result chan error = make(chan error)
-//	mu.Lock()
-//	if !startedWorker {
-//		startedWorker = true
-//		go workerThread()
-//	}
-//	if _, present := queue[to]; !present {
-//		queue[to] = make([]item, 0)
-//	}
-//	queue[to] = append(queue[to], item{to: to, from: from, onion: onionStr, result: result})
-//	result = queue[to][len(queue[to])-1].result
-//	mu.Unlock()
-//	channel <- true
-//	return <-result
-//}
-
 // sendOnion sends an onion to the specified address with compression and timeout
-func SendOnion(to, from string, o onion_model.Onion) error {
-	slog.Info(pl.GetFuncName()+": Sending onion...", "from", config.AddressToName(from), "to", config.AddressToName(to))
-	url := fmt.Sprintf("%s/receive", to)
-
-	//data, err := base64.StdEncoding.DecodeString(onionStr)
-	//if err != nil {
-	//	return pl.WrapError(err, "%s: failed to decode onion string", pl.GetFuncName())
-	//}
-	//
-	////beforeSize := len(data)
-	//
-	//compressedData, err := utils.Compress(data)
-	//if err != nil {
-	//	return pl.WrapError(err, "%s: failed to compress onion", pl.GetFuncName())
-	//}
-	//
-	////afterSize := len(compressedData)
-	////slog.Info(pl.GetFuncName(), "before", beforeSize, "after", afterSize, "Saved", fmt.Sprintf("%.2f%%", 100-float64(afterSize)/float64(beforeSize)*100))
-	//
-	//encodeToString := base64.StdEncoding.EncodeToString(compressedData)
-
-	data, err := json.Marshal(o)
-	if err != nil {
-		return pl.WrapError(err, "%s: failed to marshal onion", pl.GetFuncName())
-	}
-
-	oStr := base64.StdEncoding.EncodeToString(data)
-
-	onion := structs.OnionApi{
-		To:    to,
-		From:  from,
-		Onion: oStr,
-	}
+func SendOnion(onion structs.Onion) error {
+	slog.Info(pl.GetFuncName()+": Sending onion...", "from", config.AddressToName(onion.From), "to", config.AddressToName(onion.To))
+	url := fmt.Sprintf("%s/receive", onion.To)
 
 	payload, err := json.Marshal(onion)
 	if err != nil {
@@ -137,7 +50,7 @@ func SendOnion(to, from string, o onion_model.Onion) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return pl.WrapError(err, "%s: failed to send POST request with onion to %s", pl.GetFuncName(), config.AddressToName(to))
+		return pl.WrapError(err, "%s: failed to send POST request with onion to %s", pl.GetFuncName(), config.AddressToName(onion.To))
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -150,11 +63,11 @@ func SendOnion(to, from string, o onion_model.Onion) error {
 		return pl.NewError("%s: failed to send to first node(url=%s), status code: %d, status: %s", pl.GetFuncName(), url, resp.StatusCode, resp.Status)
 	}
 
-	slog.Info("✅ Successfully sent onion. ", "from", config.AddressToName(from), "to", config.AddressToName(to))
+	slog.Info("✅ Successfully sent onion. ", "from", config.AddressToName(onion.From), "to", config.AddressToName(onion.To))
 	return nil
 }
 
-func HandleReceiveOnion(w http.ResponseWriter, r *http.Request, receiveFunction func(string) error) {
+func HandleReceiveOnion(w http.ResponseWriter, r *http.Request, receiveFunction func(structs.Onion) error) {
 
 	var body []byte
 	var err error
@@ -187,14 +100,14 @@ func HandleReceiveOnion(w http.ResponseWriter, r *http.Request, receiveFunction 
 		}
 	}
 
-	var o structs.OnionApi
+	var o structs.Onion
 	if err := json.Unmarshal(body, &o); err != nil {
 		slog.Error("Error decoding onion", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err = receiveFunction(o.Onion); err != nil {
+	if err = receiveFunction(o); err != nil {
 		slog.Error("Error receiving onion", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="node 3" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="node 3" type="GoApplicationRunConfiguration" factoryName="Go Application" folderName="nodes">
     <module name="pi_t-privacy-evaluation" />
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="-id 3" />

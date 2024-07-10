@@ -10,7 +10,7 @@ import (
 
 func (n *Node) HandleReceiveOnion(w http.ResponseWriter, r *http.Request) {
 	api_functions.HandleReceiveOnion(w, r, n.Receive)
-	//var o structs.OnionApi
+	//var o structs.Onion
 	//if err := json.NewDecoder(r.Body).Decode(&o); err != nil {
 	//	slog.Error("Error decoding onion", err)
 	//	http.Error(w, err.Error(), http.StatusBadRequest)
@@ -39,7 +39,7 @@ func (n *Node) HandleGetStatus(w http.ResponseWriter, r *http.Request) {
 
 func (n *Node) HandleStartRun(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Starting run")
-	var start structs.StartRunApi
+	var start structs.StartRunAPI
 	if err := json.NewDecoder(r.Body).Decode(&start); err != nil {
 		slog.Error("Error decoding active nodes", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -47,11 +47,7 @@ func (n *Node) HandleStartRun(w http.ResponseWriter, r *http.Request) {
 	}
 	//slog.Info("Active nodes", "start", start)
 	go func() {
-		if didParticipate, err := n.startRun(start); err != nil {
-			slog.Error("Error starting run", err)
-		} else {
-			slog.Info("Run complete", "did_participate", didParticipate)
-		}
+		n.startRun(start)
 	}()
 	w.WriteHeader(http.StatusOK)
 }

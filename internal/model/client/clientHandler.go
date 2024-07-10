@@ -13,24 +13,6 @@ import (
 
 func (c *Client) HandleReceive(w http.ResponseWriter, r *http.Request) {
 	api_functions.HandleReceiveOnion(w, r, c.Receive)
-	//var o structs.OnionApi
-	//if err := json.NewDecoder(r.Body).Decode(&o); err != nil {
-	//	slog.Error("Error decoding onion", err)
-	//	http.Error(w, err.Error(), http.StatusBadRequest)
-	//	return
-	//}
-	//decompressed, err := api.Receive(o.Onion)
-	//if err != nil {
-	//	slog.Error("Error decompressing onion", err)
-	//	http.Error(w, err.Error(), http.StatusInternalServerError)
-	//	return
-	//}
-	//if err = c.Receive(decompressed); err != nil {
-	//	slog.Error("Error receiving onion", err)
-	//	http.Error(w, err.Error(), http.StatusInternalServerError)
-	//	return
-	//}
-	//w.WriteHeader(http.StatusOK)
 }
 
 func (c *Client) HandleGetStatus(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +24,7 @@ func (c *Client) HandleGetStatus(w http.ResponseWriter, r *http.Request) {
 
 func (c *Client) HandleStartRun(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Starting run")
-	var start structs.StartRunApi
+	var start structs.StartRunAPI
 	if err := json.NewDecoder(r.Body).Decode(&start); err != nil {
 		slog.Error("Error decoding active nodes", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

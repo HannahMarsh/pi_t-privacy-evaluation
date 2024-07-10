@@ -3,6 +3,7 @@ package utils
 import (
 	"cmp"
 	"context"
+	"github.com/HannahMarsh/PrettyLogger"
 	"github.com/jfcg/sorty/v2"
 	"math/rand"
 	"runtime"
@@ -186,15 +187,21 @@ func Remove[T any](items []T, condition func(T) bool) []T {
 	return filteredItems
 }
 
+func RemoveElement[T comparable](items []T, element T) []T {
+	return Remove(items, func(e T) bool {
+		return e == element
+	})
+}
+
 func InsertAtIndex[T any](items []T, index int, value T) []T {
 	if index == 0 {
 		return append([]T{value}, items...)
 	}
+	items = Copy(items)
 	if index == len(items) {
 		return append(items, value)
 	}
-	temp := append(Copy(items)[:index], value)
-	return append(temp, items[index:]...)
+	return append(append(items[:index], value), items[index:]...)
 }
 
 func RemoveIndex[T any](items []T, index int) []T {
@@ -209,6 +216,18 @@ func RemoveIndex[T any](items []T, index int) []T {
 
 func GetLast[T any](items []T) T {
 	return items[len(items)-1]
+}
+
+func RemoveDuplicates[T comparable](items []T) []T {
+	uniqueItems := make([]T, 0)
+	seen := make(map[T]bool)
+	for _, item := range items {
+		if !seen[item] {
+			uniqueItems = append(uniqueItems, item)
+			seen[item] = true
+		}
+	}
+	return uniqueItems
 }
 
 func Filter[V any](values []V, condition func(V) bool) []V {
@@ -320,13 +339,13 @@ func DoesNotContain[T any](items []T, f func(T) bool) bool {
 	return !Contains(items, f)
 }
 
-func Find[T any](items []T, defaultT T, f func(T) bool) (T, bool) {
+func Find[T any](items []T, f func(T) bool) *T {
 	for _, item := range items {
 		if f(item) {
-			return item, true
+			return &item
 		}
 	}
-	return defaultT, false
+	return nil
 }
 
 func FindInMap[K comparable, V any](m map[K]V, f func(K, V) bool, defaultKey K, defaultValue V) (K, V, bool) {
@@ -389,7 +408,9 @@ func FindLastIndex[T any](items []T, f func(T) bool) int {
 
 func Copy[T any](items []T) []T {
 	result := make([]T, len(items))
-	copy(result, items)
+	for i, item := range items {
+		result[i] = item
+	}
 	return result
 }
 
@@ -442,6 +463,51 @@ func Unless[T any](items []T, f func(T) bool) bool {
 		}
 	}
 	return true
+}
+
+func MapParallel[T any, O any](items []T, f func(T) (O, error)) ([]O, error) {
+	var wg sync.WaitGroup
+	wg.Add(len(items))
+	results := make([]O, len(items))
+	errs := make([]error, len(items))
+	for i, item := range items {
+		go func(i int, item T) {
+			defer wg.Done()
+			results[i], errs[i] = f(item)
+		}(i, item)
+	}
+	wg.Wait()
+	// Aggregate errors
+	var firstError error
+	for _, err := range errs {
+		if err != nil {
+			if firstError == nil {
+				firstError = err
+			} else {
+				firstError = PrettyLogger.WrapError(firstError, "MapParallel")
+			}
+		}
+	}
+	if firstError != nil {
+		return nil, firstError
+	}
+	return results, nil
+}
+
+func FlatMapParallel[T any, O any](items []T, f func(T) ([]O, error)) ([]O, error) {
+	if result, err := MapParallel(items, f); err != nil {
+		return nil, err
+	} else {
+		return Flatten(result), nil
+	}
+}
+
+func Reverse[T any](items []T) []T {
+	result := make([]T, len(items))
+	for i, item := range items {
+		result[len(items)-1-i] = item
+	}
+	return result
 }
 
 func ParallelFind[T any](items []T, f func(T) bool) *T {

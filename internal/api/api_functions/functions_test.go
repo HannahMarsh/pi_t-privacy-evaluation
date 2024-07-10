@@ -56,7 +56,7 @@ import (
 //			t.Fatalf("Failed to read request body: %v", err)
 //		}
 //
-//		var onion structs.OnionApi
+//		var onion structs.Onion
 //		if err := json.Unmarshal(body, &onion); err != nil {
 //			slog.Error("Failed to unmarshal request body", err)
 //			t.Fatalf("Failed to unmarshal request body: %v", err)

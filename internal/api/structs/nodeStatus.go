@@ -29,15 +29,12 @@ type OnionStatus struct {
 	ExpectCheckPoint  bool
 }
 
-func NewNodeStatus(id int, address, publicKey string, isMixer bool) *NodeStatus {
+func NewNodeStatus(id int, address string) *NodeStatus {
 	return &NodeStatus{
 		Received: make([]OnionStatus, 0),
 		Node: PublicNodeApi{
-			ID:        id,
-			Address:   address,
-			PublicKey: publicKey,
-			Time:      time.Now(),
-			IsMixer:   isMixer,
+			ID:      id,
+			Address: address,
 		},
 		CheckpointOnionsReceived: make(map[int]int),
 		ExpectedCheckpoints:      make(map[int]int),
@@ -64,7 +61,7 @@ func (ns *NodeStatus) AddOnion(lastHop, thisAddress, nextHop string, layer int, 
 		LastHop:           lastHop,
 		ThisAddress:       thisAddress,
 		NextHop:           nextHop,
-		Layer:             layer,
+		Layer:             layer - 1,
 		IsCheckPointOnion: isCheckPointOnion,
 		TimeReceived:      time.Now(),
 	})

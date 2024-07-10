@@ -1,0 +1,17 @@
+ scenarios:
+  - name: 'Scenario 0'
+    messages:
+      - from: 1               # id of client sender
+        to: 4                 # id of client receiver
+        content: 'From 1!'    # content of message
+      - from: 2
+        to: 3
+        content: 'From 2!'
+  - name: 'Scenario 1'
+    messages:
+      - from: 1
+        to: 3
+        content: 'From 1!'
+      - from: 2
+        to: 4
+        content: 'From 2!'
