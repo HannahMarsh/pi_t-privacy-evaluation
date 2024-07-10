@@ -8,11 +8,15 @@ import (
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/api_functions"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
 	"io"
 	"net/http"
 	"sync"
 )
+
+var adversary config.Adversary
+var alwaysDropFrom []string
 
 // Node represents a node in the onion routing network
 type Node struct {
@@ -23,10 +27,11 @@ type Node struct {
 	mu               sync.RWMutex
 	BulletinBoardUrl string
 	status           *structs.NodeStatus
+	isAdversary      bool
 }
 
 // NewNode creates a new node
-func NewNode(id int, host string, port int, bulletinBoardUrl string) (*Node, error) {
+func NewNode(id int, host string, port int, bulletinBoardUrl string, isAdversary bool) (*Node, error) {
 	n := &Node{
 		ID:               id,
 		Host:             host,
@@ -34,10 +39,13 @@ func NewNode(id int, host string, port int, bulletinBoardUrl string) (*Node, err
 		Address:          fmt.Sprintf("http://%s:%d", host, port),
 		BulletinBoardUrl: bulletinBoardUrl,
 		status:           structs.NewNodeStatus(id, fmt.Sprintf("http://%s:%d", host, port)),
+		isAdversary:      isAdversary,
 	}
 	if err2 := n.RegisterWithBulletinBoard(); err2 != nil {
 		return nil, pl.WrapError(err2, "node.NewNode(): failed to register with bulletin board")
 	}
+	adversary = config.GlobalConfig.Adversary
+	alwaysDropFrom = utils.Map(adversary.AlwaysDropFrom, config.GlobalConfig.GetClientAddress)
 	return n, nil
 }
 
@@ -67,7 +75,13 @@ func (n *Node) Receive(o structs.Onion) error {
 		return pl.WrapError(err, "node.Receive(): failed to peel onion")
 	}
 
-	go n.status.AddOnion(o.From, n.Address, peeled.To, o.Layer, false)
+	if n.isAdversary && utils.ContainsElement(alwaysDropFrom, o.From) || utils.ContainsElement(alwaysDropFrom, peeled.To) {
+		slog.Info("Dropping onion", "from", config.AddressToName(o.From), "to", config.AddressToName(o.To))
+		go n.status.AddOnion(o.From, n.Address, peeled.To, o.Layer, false, true)
+		return nil
+	}
+
+	go n.status.AddOnion(o.From, n.Address, peeled.To, o.Layer, false, false)
 
 	if err = api_functions.SendOnion(peeled); err != nil {
 		return pl.WrapError(err, "node.Receive(): failed to send to next node")

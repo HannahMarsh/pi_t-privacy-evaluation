@@ -15,10 +15,11 @@ import (
 )
 
 type Adversary struct {
-	Gamma  float64 `yaml:"gamma"`
-	Chi    float64 `yaml:"chi"`
-	Theta  float64 `yaml:"theta"`
-	NodeID int     `yaml:"nodeID"`
+	Gamma          float64 `yaml:"gamma"`
+	Chi            float64 `yaml:"chi"`
+	Theta          float64 `yaml:"theta"`
+	NodeIDs        []int   `yaml:"nodeIDs"`
+	AlwaysDropFrom []int   `yaml:"alwaysDropFrom"`
 }
 
 type BulletinBoard struct {
@@ -65,6 +66,7 @@ type Config struct {
 	N             int           `yaml:"N"`
 	R             int           `yaml:"R"`
 	D             int           `yaml:"D"`
+	StdDev        float64       `yaml:"stdDev"`
 	BulletinBoard BulletinBoard `yaml:"bulletin_board"`
 	Nodes         []Node        `yaml:"nodes"`
 	Metrics       Metrics       `yaml:"metrics"`

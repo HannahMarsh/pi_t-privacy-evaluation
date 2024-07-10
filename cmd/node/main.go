@@ -7,6 +7,7 @@ import (
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/model/node"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
 	"net/http"
@@ -73,7 +74,7 @@ func main() {
 
 	var newNode *node.Node
 	for {
-		if n, err := node.NewNode(nodeConfig.ID, nodeConfig.Host, nodeConfig.Port, baddress); err != nil {
+		if n, err := node.NewNode(nodeConfig.ID, nodeConfig.Host, nodeConfig.Port, baddress, utils.ContainsElement(cfg.Adversary.NodeIDs, nodeConfig.ID)); err != nil {
 			slog.Error("failed to create newNode. Trying again in 5 seconds. ", err)
 			time.Sleep(5 * time.Second)
 			continue

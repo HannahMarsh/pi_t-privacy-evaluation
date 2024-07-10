@@ -193,15 +193,27 @@ func RemoveElement[T comparable](items []T, element T) []T {
 	})
 }
 
+func HasUniqueElements[T comparable](items []T) bool {
+	seen := make(map[T]bool)
+	for _, item := range items {
+		if seen[item] {
+			return false
+		}
+		seen[item] = true
+	}
+	return true
+}
+
 func InsertAtIndex[T any](items []T, index int, value T) []T {
 	if index == 0 {
 		return append([]T{value}, items...)
 	}
-	items = Copy(items)
-	if index == len(items) {
-		return append(items, value)
+	items2 := Copy(items)
+	if index == len(items2) {
+		return append(items2, value)
 	}
-	return append(append(items[:index], value), items[index:]...)
+	temp := append(Copy(items2[:index]), value)
+	return append(temp, items2[index:]...)
 }
 
 func RemoveIndex[T any](items []T, index int) []T {

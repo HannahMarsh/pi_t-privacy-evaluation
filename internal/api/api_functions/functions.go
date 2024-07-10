@@ -101,7 +101,7 @@ func HandleReceiveOnion(w http.ResponseWriter, r *http.Request, receiveFunction 
 	}
 
 	var o structs.Onion
-	if err := json.Unmarshal(body, &o); err != nil {
+	if err = json.Unmarshal(body, &o); err != nil {
 		slog.Error("Error decoding onion", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

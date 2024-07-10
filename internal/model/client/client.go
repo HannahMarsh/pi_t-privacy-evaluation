@@ -85,14 +85,20 @@ func DetermineRoutingPath(l int, participants []structs.PublicNodeApi) []structs
 
 // DetermineCheckpointRoutingPath determines a routing path with a checkpoint
 func DetermineCheckpointRoutingPath(l int, receiver structs.PublicNodeApi, layer int, nodes, clients []structs.PublicNodeApi) []structs.PublicNodeApi {
-	path := DetermineRoutingPath(l-1, utils.RemoveElement(nodes, receiver))
-	path = utils.InsertAtIndex(path, layer, receiver)
-	return append(path, utils.RandomElement(clients))
+	removed := utils.Filter(nodes, func(api structs.PublicNodeApi) bool {
+		return api.Address != receiver.Address || api.ID != receiver.ID
+	})
+	path := DetermineRoutingPath(l-1, removed)
+	path2 := utils.InsertAtIndex(path, layer, receiver)
+	hasUnique := utils.HasUniqueElements(path2)
+	path3 := utils.InsertAtIndex(path, layer, receiver)
+
+	slog.Info("Client determining checkpoint routing path", "path", path2, "has_unique", hasUnique, "path3", path3)
+	return append(path2, utils.RandomElement(clients))
 }
 
 // formOnions forms the onions for the messages to be sent
 func (c *Client) formOnions(start structs.StartRunAPI) (onions []structs.Onion, err error) {
-	onions = make([]structs.Onion, 0)
 	nodes := utils.Filter(utils.RemoveDuplicates(start.Nodes), func(node structs.PublicNodeApi) bool {
 		return node.Address != ""
 	})
@@ -114,6 +120,11 @@ func (c *Client) formOnions(start structs.StartRunAPI) (onions []structs.Onion, 
 		})
 	})
 
+	if len(messages) == 0 {
+		sendTo := config.GlobalConfig.GetClientAddress((len(clients) - c.ID) + 2)
+		messages = []structs.Message{structs.NewMessage(c.Address, sendTo, "empty message")}
+	}
+
 	if onions, err = utils.FlatMapParallel(messages, func(msg structs.Message) ([]structs.Onion, error) {
 		if onions, err = c.processMessage(msg, nodes, clients); err != nil {
 			return nil, pl.WrapError(err, "failed to process message")
@@ -134,11 +145,16 @@ func (c *Client) processMessage(msg structs.Message, nodes, clients []structs.Pu
 	path := utils.Map(DetermineRoutingPath(config.GlobalConfig.L, nodes), func(node structs.PublicNodeApi) string {
 		return node.Address
 	})
+	path = append(path, msg.To)
 	o, err := c.formOnion(msg, path)
 	onions = append(onions, o)
 
+	numCheckPointOnionsToSend := utils.Max(1, int((rand.NormFloat64()*config.GlobalConfig.StdDev)+float64(config.GlobalConfig.D)))
+
+	slog.Info("Client creating checkpoint onions", "num_onions", numCheckPointOnionsToSend)
+
 	// create checkpoint onions
-	for i := 0; i < config.GlobalConfig.D; i++ {
+	for i := 0; i < numCheckPointOnionsToSend; i++ {
 		if o, err = c.createCheckpointOnion(nodes, clients); err != nil {
 			return nil, pl.WrapError(err, "failed to create checkpoint onion")
 		}
@@ -149,8 +165,8 @@ func (c *Client) processMessage(msg structs.Message, nodes, clients []structs.Pu
 }
 
 func (c *Client) formOnion(msg structs.Message, path []string) (onion structs.Onion, err error) {
-	onion, err = structs.NewOnion(msg, len(path)+1)
-	for _, hop := range utils.Reverse(path) {
+	onion, err = structs.NewOnion(msg, len(path))
+	for _, hop := range utils.Reverse(path)[1:] {
 		if onion, err = onion.AddLayer(hop); err != nil {
 			return onion, pl.WrapError(err, "failed to add layer")
 		}
@@ -163,7 +179,7 @@ func (c *Client) formOnion(msg structs.Message, path []string) (onion structs.On
 // createCheckpointOnions creates checkpoint onions for the routing path
 func (c *Client) createCheckpointOnion(nodes, clients []structs.PublicNodeApi) (onion structs.Onion, err error) {
 	l := config.GlobalConfig.L
-	layer := rand.Intn(l-1) + 1
+	layer := rand.Intn(l)
 	receiver := utils.RandomElement(nodes)
 	path := utils.Map(DetermineCheckpointRoutingPath(l, receiver, layer, nodes, clients), func(node structs.PublicNodeApi) string {
 		return node.Address
@@ -204,10 +220,10 @@ func (c *Client) startRun(start structs.StartRunAPI) error {
 }
 
 func (c *Client) Receive(o structs.Onion) error {
-	if _, message, err := o.Peel(); err != nil {
+	if o2, message, err := o.Peel(); err != nil {
 		return pl.WrapError(err, "failed to peel onion")
 	} else {
-		slog.Info("Client received message", "from", message.From, "to", message.To, "msg", message.Msg)
+		slog.Info("Client received message", "from", message.From, "to", message.To, "msg", message.Msg, "o", o2)
 		go c.status.AddReceived(message)
 	}
 	return nil

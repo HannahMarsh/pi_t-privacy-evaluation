@@ -54,7 +54,7 @@ func (ns *NodeStatus) AddExpectedCheckpoint(layer int) {
 	ns.ExpectedCheckpoints[layer]++
 }
 
-func (ns *NodeStatus) AddOnion(lastHop, thisAddress, nextHop string, layer int, isCheckPointOnion bool) {
+func (ns *NodeStatus) AddOnion(lastHop, thisAddress, nextHop string, layer int, isCheckPointOnion bool, dropped bool) {
 	ns.mu.Lock()
 	defer ns.mu.Unlock()
 	ns.Received = append(ns.Received, OnionStatus{
@@ -64,6 +64,7 @@ func (ns *NodeStatus) AddOnion(lastHop, thisAddress, nextHop string, layer int, 
 		Layer:             layer - 1,
 		IsCheckPointOnion: isCheckPointOnion,
 		TimeReceived:      time.Now(),
+		Dropped:           dropped,
 	})
 	ns.TotalOnionsReceived[layer]++
 }

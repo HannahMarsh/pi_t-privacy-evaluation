@@ -1,6 +1,7 @@
 N: 4          # Number of active nodes at the start of the protocol
 R: 4          # Number of clients registered with intent-to-send at the start the protocol.
-D: 2          # Number of dummy onions to send per message-bearing onion
+D: 10          # Average Number of dummy onions to send per message-bearing onion
+stdDev: 1.0  # standard deviation for D
 L: 3          # Length of routing path
 epsilon: 0.1  # The privacy loss in the worst case scenario.
 delta: 1e-5   # The probability of differential privacy violation due to the adversary's actions.
@@ -8,7 +9,11 @@ adversary:
   gamma: 0.8    # γ: Fraction of (indistinguishable) onions that A can drop
   chi: 0.3      # (X < θ - 0.5) and (X < (d / l1) - 0.5) and (X < 1 - (τ / (1 - γ))) Fraction of nodes that A can corrupt
   theta: 0.8    # (θ > 0.5 + X) and (θ = d / l1) Fraction of layers that need to be bruised so that the innermost tulip bulb becomes unrecoverable
-  nodeID: 1     # ID of the adversary
+  nodeIDs:      # IDs of the corrupted nodes
+    - 1
+    - 2
+  alwaysDropFrom:
+    - 1 # id of client that the adversary always drops onions from
 metrics:
   host: 'localhost'
   port: 8200
