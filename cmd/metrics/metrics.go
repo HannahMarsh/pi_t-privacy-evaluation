@@ -2,21 +2,19 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/model/adversary"
 	_ "github.com/lib/pq"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -49,27 +47,12 @@ func main() {
 
 	slog.Info("⚡ init metrics", "host", cfg.Metrics.Host, "port", cfg.Metrics.Port)
 
-	time.Sleep(1 * time.Second)
-	http.HandleFunc("/data", serveData)
-	http.Handle("/", http.FileServer(http.Dir("./static")))
-	//http.Handle("/clients", http.FileServer(http.Dir("./static/client")))
-	//http.Handle("/nodes", http.FileServer(http.Dir("./static/nodes")))
-	//http.Handle("/nodes/rounds", http.FileServer(http.Dir("./static/nodes/rounds")))
-
-	go func() {
-		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Metrics.Port), nil); err != nil {
-			if errors.Is(err, http.ErrServerClosed) {
-				slog.Info("HTTP server closed")
-			} else {
-				slog.Error("failed to start HTTP server", err)
-			}
-		}
-	}()
-
 	slog.Info("🌏 start metrics...", "address", fmt.Sprintf(" %s:%d ", cfg.Metrics.Host, cfg.Metrics.Port))
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	go collect()
 
 	select {
 	case v := <-quit:
@@ -81,37 +64,10 @@ func main() {
 
 }
 
-type Data struct {
-	Clients  map[string]structs.ClientStatus
-	Messages []Message
-	Nodes    map[string]structs.NodeStatus
-	mu       sync.RWMutex
-}
+func collect() {
 
-type Message struct {
-	From         string
-	To           string
-	RoutingPath  []structs.PublicNodeApi
-	Msg          string
-	TimeSent     string
-	TimeReceived string
-	Hash         string
-}
-
-var (
-	data Data = Data{
-		Clients:  make(map[string]structs.ClientStatus),
-		Messages: make([]Message, 0),
-		Nodes:    make(map[string]structs.NodeStatus),
-	}
-)
-
-func serveData(w http.ResponseWriter, r *http.Request) {
-	// Set the response header to application/json
-	w.Header().Set("Content-Type", "application/json")
-
-	data.mu.Lock()
-	defer data.mu.Unlock()
+	Clients := make(map[string]structs.ClientStatus)
+	Nodes := make(map[string]structs.NodeStatus)
 
 	for _, client := range config.GlobalConfig.Clients {
 		addr := fmt.Sprintf("http://%s:%d/status", client.Host, client.Port)
@@ -124,7 +80,7 @@ func serveData(w http.ResponseWriter, r *http.Request) {
 			if err = json.NewDecoder(resp.Body).Decode(&status); err != nil {
 				slog.Error("failed to decode client status", err)
 			} else {
-				data.Clients[addr] = status
+				Clients[addr] = status
 			}
 		}
 	}
@@ -140,102 +96,28 @@ func serveData(w http.ResponseWriter, r *http.Request) {
 			if err = json.NewDecoder(resp.Body).Decode(&status); err != nil {
 				slog.Error("failed to decode client status", err)
 			} else {
-				data.Nodes[addr] = status
+				Nodes[addr] = status
 			}
 		}
 	}
 
-	m := make(map[string]Message)
+	views := adversary.CollectViews(Nodes, Clients)
 
-	for _, client := range data.Clients {
-		for _, sent := range client.MessagesSent {
-			mstr := sent.Message.Hash
-			if _, present := m[mstr]; present {
-				if m[mstr].From != sent.Message.From {
-					pl.LogNewError("from (%s) and sent.from (%s) do not match", m[mstr].From, sent.Message.From)
-				}
-				if m[mstr].To != sent.Message.To {
-					pl.LogNewError("to (%s) and sent.to (%s) do not match", m[mstr].To, sent.Message.To)
-				}
-				if m[mstr].Msg != sent.Message.Msg {
-					pl.LogNewError("msg (%s) and sent.msg (%s) do not match", m[mstr].Msg, sent.Message.Msg)
-				}
-				if m[mstr].Hash != sent.Message.Hash {
-					pl.LogNewError("hash (%s) and sent.hash (%s) do not match", m[mstr].Hash, sent.Message.Hash)
-				}
-				msg := Message{
-					From:         sent.Message.From,
-					To:           sent.Message.To,
-					RoutingPath:  sent.RoutingPath,
-					Msg:          sent.Message.Msg,
-					TimeSent:     sent.TimeSent.Format("2006-01-02 15:04:05"),
-					TimeReceived: m[mstr].TimeReceived,
-					Hash:         sent.Message.Hash,
-				}
-				m[mstr] = msg
-			} else {
-				m[mstr] = Message{
-					From:         sent.Message.From,
-					To:           sent.Message.To,
-					RoutingPath:  sent.RoutingPath,
-					Msg:          sent.Message.Msg,
-					TimeSent:     sent.TimeSent.Format("2006-01-02 15:04:05"),
-					TimeReceived: "not received",
-					Hash:         sent.Message.Hash,
-				}
-			}
-		}
-		for _, received := range client.MessagesReceived {
-			mstr := received.Message.Hash
-			if _, present := m[mstr]; present {
-				if m[mstr].From != received.Message.From {
-					pl.LogNewError("from (%s) and received.from (%s) do not match", m[mstr].From, received.Message.From)
-				}
-				if m[mstr].To != received.Message.To {
-					pl.LogNewError("to (%s) and received.to (%s) do not match", m[mstr].To, received.Message.To)
-				}
-				if m[mstr].Msg != received.Message.Msg {
-					pl.LogNewError("msg (%s) and received.msg (%s) do not match", m[mstr].Msg, received.Message.Msg)
-				}
-				if m[mstr].Hash != received.Message.Hash {
-					pl.LogNewError("hash (%s) and received.hash (%s) do not match", m[mstr].Hash, received.Message.Hash)
-				}
-				msg := Message{
-					From:         received.Message.From,
-					To:           received.Message.To,
-					RoutingPath:  m[mstr].RoutingPath,
-					Msg:          received.Message.Msg,
-					TimeSent:     m[mstr].TimeSent,
-					TimeReceived: received.TimeReceived.Format("2006-01-02 15:04:05"),
-					Hash:         received.Message.Hash,
-				}
-				m[mstr] = msg
-			} else {
-				m[mstr] = Message{
-					From:         received.Message.From,
-					To:           received.Message.To,
-					RoutingPath:  make([]structs.PublicNodeApi, 0),
-					Msg:          received.Message.Msg,
-					TimeSent:     "not sent",
-					TimeReceived: received.TimeReceived.Format("2006-01-02 15:04:05"),
-					Hash:         received.Message.Hash,
-				}
-			}
-		}
-	}
-
-	data.Messages = make([]Message, 0)
-	for _, msg := range m {
-		data.Messages = append(data.Messages, msg)
-	}
-
-	// Encode the data as JSON and write to the response
-	str, err := json.Marshal(data)
+	// Create a new file
+	file, err := os.Create("results/results.json")
 	if err != nil {
-		slog.Error("failed to marshal data", err)
-	} else {
-		if _, err = w.Write(str); err != nil {
-			slog.Error("failed to write data", err)
-		}
+		panic(err)
 	}
+	defer file.Close()
+
+	// Create a JSON encoder that writes to the file
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ") // Optional: Include indent for pretty-printing
+
+	if err = encoder.Encode(views); err != nil {
+		slog.Error("failed to marshal views", err)
+	}
+
+	slog.Info("done")
+
 }

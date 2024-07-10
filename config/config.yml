@@ -12,6 +12,8 @@ adversary:
   nodeIDs:      # IDs of the corrupted nodes
     - 1
     - 2
+    - 3
+    - 4
   alwaysDropFrom:
     - 1 # id of client that the adversary always drops onions from
 metrics:

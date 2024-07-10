@@ -41,6 +41,7 @@ func NewNode(id int, host string, port int, bulletinBoardUrl string, isAdversary
 		status:           structs.NewNodeStatus(id, fmt.Sprintf("http://%s:%d", host, port)),
 		isAdversary:      isAdversary,
 	}
+	slog.Info("node", "isAdversary", isAdversary)
 	if err2 := n.RegisterWithBulletinBoard(); err2 != nil {
 		return nil, pl.WrapError(err2, "node.NewNode(): failed to register with bulletin board")
 	}
@@ -75,7 +76,7 @@ func (n *Node) Receive(o structs.Onion) error {
 		return pl.WrapError(err, "node.Receive(): failed to peel onion")
 	}
 
-	if n.isAdversary && utils.ContainsElement(alwaysDropFrom, o.From) || utils.ContainsElement(alwaysDropFrom, peeled.To) {
+	if n.isAdversary && (utils.ContainsElement(alwaysDropFrom, o.From)) { //} || utils.ContainsElement(alwaysDropFrom, peeled.To)) {
 		slog.Info("Dropping onion", "from", config.AddressToName(o.From), "to", config.AddressToName(o.To))
 		go n.status.AddOnion(o.From, n.Address, peeled.To, o.Layer, false, true)
 		return nil

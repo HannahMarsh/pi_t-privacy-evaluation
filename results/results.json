@@ -1,0 +1,968 @@
+{
+  "Rounds": {
+    "0": [
+      {
+        "Round": 0,
+        "Party": "http://localhost:8101",
+        "ID": 1,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8102",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8102"
+        ]
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8102",
+        "ID": 2,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103"
+        ]
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8103",
+        "ID": 3,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101"
+        ]
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8104",
+        "ID": 4,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103"
+        ]
+      }
+    ],
+    "1": [
+      {
+        "Round": 1,
+        "Party": "http://localhost:8081",
+        "ID": 1,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8102"
+        ],
+        "SentTo": [
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8084"
+        ]
+      },
+      {
+        "Round": 1,
+        "Party": "http://localhost:8082",
+        "ID": 2,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104"
+        ],
+        "SentTo": [
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8084",
+          "http://localhost:8083",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 1,
+        "Party": "http://localhost:8083",
+        "ID": 3,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8101"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8082"
+        ]
+      },
+      {
+        "Round": 1,
+        "Party": "http://localhost:8084",
+        "ID": 4,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8101"
+        ],
+        "SentTo": [
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ]
+      }
+    ],
+    "2": [
+      {
+        "Round": 2,
+        "Party": "http://localhost:8081",
+        "ID": 1,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8084"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8084",
+          "http://localhost:8082",
+          "http://localhost:8084",
+          "http://localhost:8084",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8084",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8082"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8082",
+        "ID": 2,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083"
+        ],
+        "SentTo": [
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8083",
+        "ID": 3,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8084",
+        "ID": 4,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8082"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8081"
+        ]
+      }
+    ],
+    "3": [
+      {
+        "Round": 3,
+        "Party": "http://localhost:8081",
+        "ID": 1,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8084"
+        ],
+        "SentTo": [
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8103"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8082",
+        "ID": 2,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8084",
+          "http://localhost:8081"
+        ],
+        "SentTo": [
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8083",
+        "ID": 3,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ],
+        "SentTo": [
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8084",
+        "ID": 4,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ],
+        "SentTo": [
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103"
+        ]
+      }
+    ],
+    "4": [
+      {
+        "Round": 4,
+        "Party": "http://localhost:8101",
+        "ID": 1,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8103"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 4,
+        "Party": "http://localhost:8102",
+        "ID": 2,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8104"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 4,
+        "Party": "http://localhost:8103",
+        "ID": 3,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8104"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 4,
+        "Party": "http://localhost:8104",
+        "ID": 4,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103"
+        ],
+        "SentTo": []
+      }
+    ]
+  },
+  "Parties": {
+    "http://localhost:8081": [
+      {
+        "Round": 1,
+        "Party": "http://localhost:8081",
+        "ID": 1,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8102"
+        ],
+        "SentTo": [
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8084"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8081",
+        "ID": 1,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8084"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8084",
+          "http://localhost:8082",
+          "http://localhost:8084",
+          "http://localhost:8084",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8084",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8082"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8081",
+        "ID": 1,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8083",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8084"
+        ],
+        "SentTo": [
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8103"
+        ]
+      }
+    ],
+    "http://localhost:8082": [
+      {
+        "Round": 1,
+        "Party": "http://localhost:8082",
+        "ID": 2,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104"
+        ],
+        "SentTo": [
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8084",
+          "http://localhost:8083",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8082",
+        "ID": 2,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083"
+        ],
+        "SentTo": [
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8082",
+        "ID": 2,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8083",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8084",
+          "http://localhost:8081"
+        ],
+        "SentTo": [
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104"
+        ]
+      }
+    ],
+    "http://localhost:8083": [
+      {
+        "Round": 1,
+        "Party": "http://localhost:8083",
+        "ID": 3,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8101"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8082"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8083",
+        "ID": 3,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8083",
+        "ID": 3,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8082",
+          "http://localhost:8082",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ],
+        "SentTo": [
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103"
+        ]
+      }
+    ],
+    "http://localhost:8084": [
+      {
+        "Round": 1,
+        "Party": "http://localhost:8084",
+        "ID": 4,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8101"
+        ],
+        "SentTo": [
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 2,
+        "Party": "http://localhost:8084",
+        "ID": 4,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8082"
+        ],
+        "SentTo": [
+          "http://localhost:8082",
+          "http://localhost:8081"
+        ]
+      },
+      {
+        "Round": 3,
+        "Party": "http://localhost:8084",
+        "ID": 4,
+        "IsNode": true,
+        "ReceivedFrom": [
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081",
+          "http://localhost:8081"
+        ],
+        "SentTo": [
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103"
+        ]
+      }
+    ],
+    "http://localhost:8101": [
+      {
+        "Round": 4,
+        "Party": "http://localhost:8101",
+        "ID": 1,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8103"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8101",
+        "ID": 1,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8102",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8102"
+        ]
+      }
+    ],
+    "http://localhost:8102": [
+      {
+        "Round": 4,
+        "Party": "http://localhost:8102",
+        "ID": 2,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8104"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8102",
+        "ID": 2,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103"
+        ]
+      }
+    ],
+    "http://localhost:8103": [
+      {
+        "Round": 4,
+        "Party": "http://localhost:8103",
+        "ID": 3,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8104"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8103",
+        "ID": 3,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101",
+          "http://localhost:8102",
+          "http://localhost:8104",
+          "http://localhost:8101"
+        ]
+      }
+    ],
+    "http://localhost:8104": [
+      {
+        "Round": 4,
+        "Party": "http://localhost:8104",
+        "ID": 4,
+        "IsNode": false,
+        "ReceivedFrom": [
+          "http://localhost:8102",
+          "http://localhost:8102",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8103"
+        ],
+        "SentTo": []
+      },
+      {
+        "Round": 0,
+        "Party": "http://localhost:8104",
+        "ID": 4,
+        "IsNode": false,
+        "ReceivedFrom": [],
+        "SentTo": [
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8103",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103",
+          "http://localhost:8102",
+          "http://localhost:8101",
+          "http://localhost:8101",
+          "http://localhost:8103"
+        ]
+      }
+    ]
+  }
+}
