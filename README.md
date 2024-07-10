@@ -13,7 +13,7 @@ For an implementation of $`\Pi_t`$, see [github.com/HannahMarsh/pi_t-experiment]
 &nbsp;
 
 <figure>
-  <figcaption><em>Figure 1 - Onion Routing Visualization</em></figcaption>
+  <figcaption><b>Figure 1</b> - <em>Routing Path Visualization, Example "Scenario 0" (with N clients, R Relays, l1 mixers, and l rounds)</em></figcaption>
   <img src="img/onion-routing.png" alt="binomials" width="100%"/>
 </figure>
 
