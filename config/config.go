@@ -48,11 +48,6 @@ type Metrics struct {
 	Address string
 }
 
-type Scenario struct {
-	Name     string    `yaml:"name"`
-	Messages []Message `yaml:"messages"`
-}
-
 type Message struct {
 	From    int    `yaml:"from"`
 	To      int    `yaml:"to"`
@@ -67,12 +62,13 @@ type Config struct {
 	R             int           `yaml:"R"`
 	D             int           `yaml:"D"`
 	StdDev        float64       `yaml:"stdDev"`
+	Range         int           `yaml:"range"`
 	BulletinBoard BulletinBoard `yaml:"bulletin_board"`
 	Nodes         []Node        `yaml:"nodes"`
 	Metrics       Metrics       `yaml:"metrics"`
 	Clients       []Client      `yaml:"clients"`
 	Adversary     Adversary     `yaml:"adversary"`
-	Scenarios     []Scenario    `yaml:"scenarios"`
+	Scenario      int           `yaml:"scenario"`
 }
 
 func (cnfg *Config) GetClientAddress(id int) string {
@@ -105,11 +101,7 @@ var Names sync.Map
 func InitGlobal() (err error) {
 	GlobalCtx, GlobalCancel = context.WithCancel(context.Background())
 	GlobalConfig = &Config{}
-	scenarios := &Config{}
 
-	if err, scenarios = readConfig(scenarios, "scenarios.yml"); err != nil {
-		return PrettyLogger.WrapError(err, "config.NewConfig(): global config error")
-	}
 	if err, GlobalConfig = readConfig(GlobalConfig, "config.yml"); err != nil {
 		return PrettyLogger.WrapError(err, "config.NewConfig(): global config error")
 	}
@@ -128,8 +120,6 @@ func InitGlobal() (err error) {
 	}
 	GlobalConfig.BulletinBoard.Address = fmt.Sprintf("http://%s:%d", GlobalConfig.BulletinBoard.Host, GlobalConfig.BulletinBoard.Port)
 	GlobalConfig.Metrics.Address = fmt.Sprintf("http://%s:%d", GlobalConfig.Metrics.Host, GlobalConfig.Metrics.Port)
-	GlobalConfig.Scenarios = scenarios.Scenarios
-
 	GlobalConfig.Nodes = GlobalConfig.Nodes[:GlobalConfig.N]
 	GlobalConfig.Clients = GlobalConfig.Clients[:GlobalConfig.R]
 	return nil

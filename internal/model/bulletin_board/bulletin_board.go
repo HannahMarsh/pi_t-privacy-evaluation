@@ -9,7 +9,6 @@ import (
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
-	"math/rand"
 	"net/http"
 	"sync"
 )
@@ -86,7 +85,9 @@ func (bb *BulletinBoard) GetStartRunAPI() structs.StartRunAPI {
 		return n.Address != ""
 	})
 
-	scenario := rand.Intn(len(config.GlobalConfig.Scenarios))
+	//scenario := rand.Intn(len(config.GlobalConfig.Scenarios))
+
+	scenario := config.GlobalConfig.Scenario
 
 	slog.Info("Selected scenario", "scenario", scenario)
 

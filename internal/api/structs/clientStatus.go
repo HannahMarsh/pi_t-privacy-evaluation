@@ -23,8 +23,9 @@ type Sent struct {
 }
 
 type Received struct {
-	Message      Message
-	TimeReceived time.Time
+	Message          Message
+	ReceivedFromNode PublicNodeApi
+	TimeReceived     time.Time
 }
 
 func NewClientStatus(id int, address string) *ClientStatus {
@@ -53,12 +54,13 @@ func (cs *ClientStatus) AddSent(message Message, path []string) {
 	//	slog.Info(PrettyLogger.GetFuncName(), "message", message)
 }
 
-func (cs *ClientStatus) AddReceived(message Message) {
+func (cs *ClientStatus) AddReceived(message Message, receivedFromNode string) {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 	cs.MessagesReceived = append(cs.MessagesReceived, Received{
-		Message:      message,
-		TimeReceived: time.Now(),
+		Message:          message,
+		ReceivedFromNode: GetPublicNodeApi(receivedFromNode),
+		TimeReceived:     time.Now(),
 	})
 }
 

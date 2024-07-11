@@ -20,21 +20,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 func main() {
 	//isMixer := flag.Bool("mixer", false, "Included if this node is a mixer")
 	logLevel := flag.String("log-level", "debug", "Log level")
-	output := flag.String("output", "results", "Output directory")
-
 	flag.Usage = func() {
-		if _, err := fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0]); err != nil {
-			slog.Error("Usage of %s:\n", err, os.Args[0])
-		}
 		flag.PrintDefaults()
 	}
 
@@ -53,75 +46,79 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg := config.GlobalConfig
-
-	slog.Info("⚡ init metrics", "host", cfg.Metrics.Host, "port", cfg.Metrics.Port)
-
-	slog.Info("🌏 start metrics...", "address", fmt.Sprintf(" %s:%d ", cfg.Metrics.Host, cfg.Metrics.Port))
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-
-	collect(*output)
+	collect()
 
 }
 
-func collect(output_dir string) {
+func collect() {
 
-	Clients := make(map[string]structs.ClientStatus)
-	Nodes := make(map[string]structs.NodeStatus)
+	output_dir := fmt.Sprintf("results/%d_%d_%d_%d/%d", config.GlobalConfig.N, config.GlobalConfig.R, config.GlobalConfig.D, config.GlobalConfig.L, config.GlobalConfig.Scenario)
+
+	err := os.MkdirAll(output_dir, os.ModePerm)
+	if err != nil {
+		fmt.Println("Error creating directories:", err)
+		return
+	}
+
+	Clients := make(map[int]*structs.ClientStatus)
+	Nodes := make(map[int]*structs.NodeStatus)
 
 	for _, client := range config.GlobalConfig.Clients {
-		addr := fmt.Sprintf("http://%s:%d/status", client.Host, client.Port)
-		resp, err := http.Get(addr)
+
+		addr := fmt.Sprintf("http://%s:%d", client.Host, client.Port)
+		resp, err := http.Get(addr + "/status")
 		if err != nil {
 			slog.Error("failed to get client status", err)
 		} else {
 			defer resp.Body.Close()
-			var status structs.ClientStatus
-			if err = json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			var status = new(structs.ClientStatus)
+			if err = json.NewDecoder(resp.Body).Decode(status); err != nil {
 				slog.Error("failed to decode client status", err)
 			} else {
-				Clients[addr] = status
+				Clients[addressToId(addr)] = status
 			}
 		}
 	}
 
 	for _, node := range config.GlobalConfig.Nodes {
-		addr := fmt.Sprintf("http://%s:%d/status", node.Host, node.Port)
-		resp, err := http.Get(addr)
+		addr := fmt.Sprintf("http://%s:%d", node.Host, node.Port)
+		resp, err := http.Get(addr + "/status")
 		if err != nil {
 			slog.Error("failed to get client status", err)
 		} else {
 			defer resp.Body.Close()
-			var status structs.NodeStatus
-			if err = json.NewDecoder(resp.Body).Decode(&status); err != nil {
+			var status = new(structs.NodeStatus)
+			if err = json.NewDecoder(resp.Body).Decode(status); err != nil {
 				slog.Error("failed to decode client status", err)
 			} else {
-				Nodes[addr] = status
+				Nodes[addressToId(addr)] = status
 			}
 		}
 	}
 
 	views := adversary.CollectViews(Nodes, Clients)
 
-	probabilities := views.GetProbabilities()
+	probabilities := views.GetProbabilities(2)
 	toPlot := probabilities[len(probabilities)-1][1 : config.GlobalConfig.R+1] // get probabilities for last round
 	probData := appendAndGetData(output_dir, "probabilities", toPlot)
 	averages := computeAverages(probData)
 
-	createPlot(averages, fmt.Sprintf("%s/%s.png", output_dir, "probabilities"))
+	createPlot(fmt.Sprintf("%s/%s.png", output_dir, "probabilities"), averages)
 
-	numsN := views.GetNumOnionsReceived(len(config.GlobalConfig.Clients))
-	numsN_1 := views.GetNumOnionsReceived(len(config.GlobalConfig.Clients) - 1)
-	receivedN := utils.GetLast(numsN)
-	receivedN_1 := utils.GetLast(numsN_1)
+	receivedN := views.GetNumOnionsReceived(len(config.GlobalConfig.Clients), config.GlobalConfig.L+1)
+	receivedN_1 := views.GetNumOnionsReceived(len(config.GlobalConfig.Clients)-1, config.GlobalConfig.L+1)
 
 	slog.Info("", "receivedN", receivedN, "receivedN_1", receivedN_1)
-	//numOnionsData := appendAndGetData(output_dir, "numOnionsReceived", []float64{float64(receivedN), float64(receivedN_1)})
-	//cdf := computeCDF(numOnionsData)
-	//createPlot(cdf, fmt.Sprintf("%s/%s.png", output_dir, "numOnionsReceived"))
+	numOnionsData := appendAndGetData(output_dir, "numOnionsReceived", []float64{float64(receivedN), float64(receivedN_1)})
 
+	NData := utils.Map(numOnionsData, func(x []float64) int { return int(utils.GetFirst(x)) })
+	N_1Data := utils.Map(numOnionsData, func(x []float64) int { return int(utils.GetLast(x)) })
+
+	cdfN, shiftN := computeCDF(NData)
+	cdfN_1, shiftN_1 := computeCDF(N_1Data)
+
+	createCDFPlot(fmt.Sprintf("%s/%s.png", output_dir, "numOnionsReceivedR"), cdfN, shiftN, config.GlobalConfig.Range, fmt.Sprintf("Client %d", config.GlobalConfig.R), "Number of onions received", "CDF")
+	createCDFPlot(fmt.Sprintf("%s/%s.png", output_dir, "numOnionsReceivedR_1"), cdfN_1, shiftN_1, config.GlobalConfig.Range, fmt.Sprintf("Client %d", config.GlobalConfig.R-1), "Number of onions received", "CDF")
 }
 
 func appendAndGetData(output_dir string, name string, toPlot []float64) [][]float64 {
@@ -160,7 +157,7 @@ func appendData(filePath string, newData []float64) {
 	}
 }
 
-func createPlot(probabilities []float64, file string) {
+func createPlot(file string, probabilities []float64) {
 	// Create a new plot
 	p := plot.New()
 	p.Title.Text = "Node Probabilities"
@@ -168,7 +165,7 @@ func createPlot(probabilities []float64, file string) {
 
 	nodeIDs := make([]string, len(probabilities))
 	for i := range nodeIDs {
-		nodeIDs[i] = fmt.Sprintf("%d", i)
+		nodeIDs[i] = fmt.Sprintf("%d", i+1)
 	}
 
 	// Create a bar chart
@@ -182,6 +179,36 @@ func createPlot(probabilities []float64, file string) {
 
 	p.Add(bars)
 	p.NominalX(nodeIDs...) // Set node IDs as labels on the X-axis
+
+	// Save the plot to a PNG file
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, file); err != nil {
+		log.Panic(err)
+	}
+}
+
+func createCDFPlot(file string, probabilities []float64, xMin int, bucketSize int, title, xLabel, yLabel string) {
+	// Create a new plot
+	p := plot.New()
+	p.Title.Text = title
+	p.Y.Label.Text = yLabel
+	p.X.Label.Text = xLabel
+
+	xLabels := make([]string, len(probabilities))
+	for i := range xLabels {
+		xLabels[i] = fmt.Sprintf("%d", (i+xMin)+(i*bucketSize))
+	}
+
+	// Create a bar chart
+	w := vg.Points(20) // Width of the bars
+	bars, err := plotter.NewBarChart(plotter.Values(probabilities), w)
+	if err != nil {
+		log.Panic(err)
+	}
+	bars.LineStyle.Width = vg.Length(0)                  // No line around bars
+	bars.Color = color.Color(color.RGBA{R: 255, A: 255}) // Set the color of the bars
+
+	p.Add(bars)
+	p.NominalX(xLabels...) // Set node IDs as labels on the X-axis
 
 	// Save the plot to a PNG file
 	if err := p.Save(8*vg.Inch, 4*vg.Inch, file); err != nil {
@@ -218,6 +245,32 @@ func readCSV(filePath string) ([][]float64, error) {
 	}
 
 	return data, nil
+}
+
+func computeCDF(data []int) ([]float64, int) {
+	// Compute frequencies
+	//freq := make(map[float64]int)
+	xMin := utils.MinOver(data)
+	xMax := utils.MaxOver(data)
+	freq := make([]int, xMax-xMin+1)
+	for i := range freq {
+		freq[i] = 0
+	}
+	for _, value := range data {
+		freq[value-xMin] = freq[value-xMin] + 1
+	}
+	cumulativeSum := len(freq) - utils.Count(freq, 0)
+
+	cdf := make([]float64, 0)
+
+	for i := 0; i < len(freq); i += config.GlobalConfig.Range {
+		count := 0
+		for j := i; j < utils.Min(len(freq), i+config.GlobalConfig.Range); j++ {
+			count += freq[j]
+		}
+		cdf = append(cdf, float64(count)/float64(cumulativeSum))
+	}
+	return cdf, xMin
 }
 
 func computeAverages(data [][]float64) []float64 {

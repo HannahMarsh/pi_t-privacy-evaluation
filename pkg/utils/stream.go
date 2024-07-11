@@ -230,6 +230,34 @@ func GetLast[T any](items []T) T {
 	return items[len(items)-1]
 }
 
+func GetFirst[T any](items []T) T {
+	return items[0]
+}
+
+func GetSecondFromLast[T any](items []T) T {
+	return items[len(items)-2]
+}
+
+func MaxOver[T cmp.Ordered](items []T) T {
+	maxValue := items[0]
+	for _, item := range items {
+		if item > maxValue {
+			maxValue = item
+		}
+	}
+	return maxValue
+}
+
+func MinOver[T cmp.Ordered](items []T) T {
+	minValue := items[0]
+	for _, item := range items {
+		if item < minValue {
+			minValue = item
+		}
+	}
+	return minValue
+}
+
 func RemoveDuplicates[T comparable](items []T) []T {
 	uniqueItems := make([]T, 0)
 	seen := make(map[T]bool)
@@ -294,6 +322,32 @@ func GetValues[K comparable, V any](m map[K]V) []V {
 		values = append(values, v)
 	}
 	return values
+}
+
+func MapToMap[K comparable, V any, O any](m map[K]V, f func(K, V) O) map[K]O {
+	result := make(map[K]O)
+	for k, v := range m {
+		result[k] = f(k, v)
+	}
+	return result
+}
+
+func MapToArray[K comparable, V any, O any](m map[K]V, f func(K, V) O) []O {
+	result := make([]O, 0)
+	for k, v := range m {
+		result = append(result, f(k, v))
+	}
+	return result
+}
+
+func MapToPointerArray[K comparable, V any, O any](m map[K]V, f func(K, V) *O) []*O {
+	result := make([]*O, 0)
+	for k, v := range m {
+		if r := f(k, v); r != nil {
+			result = append(result, r)
+		}
+	}
+	return result
 }
 
 func FillArray[T any](value T, numElements int) []T {

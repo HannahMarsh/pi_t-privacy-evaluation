@@ -1,8 +1,10 @@
 N: 11          # Number of active nodes at the start of the protocol
 R: 10          # Number of clients registered with intent-to-send at the start the protocol.
-D: 5          # Average Number of dummy onions to send per message-bearing onion
-stdDev: 1.0  # standard deviation for D
+D: 40          # Average Number of dummy onions to send per message-bearing onion
+stdDev: 10.0  # standard deviation for D
 L: 5          # Length of routing path
+scenario: 1   # Index of the scenario to run
+range: 2 # size of buckets in cdf output
 epsilon: 0.1  # The privacy loss in the worst case scenario.
 delta: 1e-5   # The probability of differential privacy violation due to the adversary's actions.
 adversary:

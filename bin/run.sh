@@ -15,14 +15,6 @@ echo "R: $R"
 echo "D: $D"
 echo "L: $L"
 
-folder_name="results/${N}_${R}_${D}_${L}"
-
-# Create the directory
-mkdir -p "$folder_name"
-
-# Confirm the directory was created
-echo "Directory created: $folder_name"
-
 # Start the bulletin board
 echo "Running bulletin board in background"
 go run cmd/bulletin-board/main.go > "out/bulletin_board.log" 2>&1 &
@@ -47,7 +39,7 @@ for (( id=1; id<=R; id++ )); do
 done
 
 # Define the countdown time
-countdown_time=15
+countdown_time=10
 
 echo ""
 
@@ -60,7 +52,7 @@ done
 echo "Go!"
 
 echo "Running metrics"
-go run cmd/metrics/metrics.go -output "$folder_name"
+go run cmd/metrics/metrics.go
 
 # Terminate all processes after collecting metrics
 echo "Terminating all started processes..."

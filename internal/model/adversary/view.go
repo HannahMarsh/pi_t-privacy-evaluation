@@ -10,124 +10,124 @@ import (
 
 type View struct {
 	Round        int
-	Party        string
-	ID           int
 	NetworkId    int
 	IsNode       bool
-	ReceivedFrom []string
-	SentTo       []string
+	ReceivedFrom []int
+	SentTo       []int
 }
 
 type Views struct {
-	Rounds    map[int][]View
-	Parties   map[string][]View
-	PartiesId map[int]map[int]View
+	Rounds map[int]map[int]*View
 }
 
-func CollectViews(Nodes map[string]structs.NodeStatus, Clients map[string]structs.ClientStatus) *Views {
+func (v *Views) addView(view *View) {
+	if _, present := v.Rounds[view.Round]; !present {
+		v.Rounds[view.Round] = make(map[int]*View)
+	}
+	v.Rounds[view.Round][view.NetworkId] = view
+}
 
-	views := Views{
-		Rounds:    make(map[int][]View),
-		Parties:   make(map[string][]View),
-		PartiesId: make(map[int]map[int]View),
+func (v *Views) getView(round int, networkId int) *View {
+	if _, present := v.Rounds[round]; !present {
+		return nil
+	}
+	m := v.Rounds[round]
+	if _, present := m[networkId]; !present {
+		return nil
+	}
+	return m[networkId]
+	//return v.Rounds[round][networkId]
+}
+
+func (v *Views) getViewsForRound(round int) []*View {
+	if _, present := v.Rounds[round]; !present {
+		return nil
+	}
+	return utils.Filter(utils.GetValues(v.Rounds[round]), func(view *View) bool {
+		return view != nil
+	})
+}
+
+func (v *Views) getViewsForParty(networkId int) []*View {
+	return utils.MapToPointerArray(v.Rounds, func(_ int, views map[int]*View) *View {
+		if view, present := views[networkId]; present {
+			return view
+		}
+		return nil
+	})
+}
+
+func CollectViews(Nodes map[int]*structs.NodeStatus, Clients map[int]*structs.ClientStatus) *Views {
+
+	views := &Views{
+		Rounds: make(map[int]map[int]*View),
 	}
 
-	for i := 0; i <= config.GlobalConfig.L+1; i++ {
-		views.Rounds[i] = make([]View, 0)
+	for round := 0; round <= config.GlobalConfig.L+1; round++ {
+		views.Rounds[round] = make(map[int]*View)
 	}
+
 	for _, status := range Clients {
-		id := status.Client.ID
-		address := status.Client.Address
-		v := View{
-			Round:        config.GlobalConfig.L + 1,
-			Party:        address,
-			ID:           id,
-			NetworkId:    addressToId(address),
-			IsNode:       false,
-			ReceivedFrom: make([]string, 0),
-			SentTo:       make([]string, 0),
-		}
-		for _, msg := range status.MessagesReceived {
-			v.ReceivedFrom = append(v.ReceivedFrom, msg.Message.From)
-		}
-		views.Rounds[config.GlobalConfig.L+1] = append(views.Rounds[config.GlobalConfig.L+1], v)
-		v = View{
+		networkId := addressToId(status.Client.Address)
+		views.addView(&View{
 			Round:        0,
-			Party:        address,
-			ID:           id,
-			NetworkId:    addressToId(address),
+			NetworkId:    networkId,
 			IsNode:       false,
-			ReceivedFrom: make([]string, 0),
-			SentTo:       make([]string, 0),
-		}
-		for _, msg := range status.MessagesSent {
-			v.SentTo = append(v.SentTo, msg.RoutingPath[0].Address)
-		}
-		views.Rounds[0] = append(views.Rounds[0], v)
+			ReceivedFrom: make([]int, 0),
+			SentTo: utils.Map(status.MessagesSent, func(msg structs.Sent) int {
+				return addressToId(utils.GetFirst(msg.RoutingPath).Address)
+			}),
+		})
+		views.addView(&View{
+			Round:     config.GlobalConfig.L + 1,
+			NetworkId: networkId,
+			IsNode:    false,
+			ReceivedFrom: utils.Map(status.MessagesReceived, func(msg structs.Received) int {
+				return addressToId(msg.ReceivedFromNode.Address)
+			}),
+			SentTo: make([]int, 0),
+		})
 	}
 
 	for _, status := range Nodes {
-		id := status.Node.ID
-		address := status.Node.Address
-		rounds := make([]View, 0)
-		for i := 1; i <= config.GlobalConfig.L; i++ {
-			rounds = append(rounds, View{
-				Round:        i,
-				Party:        address,
-				ID:           id,
-				NetworkId:    addressToId(address),
-				IsNode:       true,
-				ReceivedFrom: make([]string, 0),
-				SentTo:       make([]string, 0),
+		networkId := addressToId(status.Node.Address)
+		for round := range views.Rounds {
+			onionsReceived := utils.Filter(status.Received, func(o structs.OnionStatus) bool {
+				return o.Layer == round
 			})
-		}
-		for _, o := range status.Received {
-			rounds[o.Layer].ReceivedFrom = append(rounds[o.Layer].ReceivedFrom, o.LastHop)
-			rounds[o.Layer].SentTo = append(rounds[o.Layer].SentTo, o.NextHop)
-		}
-		for _, v := range rounds {
-			views.Rounds[v.Round] = append(views.Rounds[v.Round], v)
+			received := utils.Map(onionsReceived, func(o structs.OnionStatus) int {
+				return addressToId(o.LastHop)
+			})
+			sent := utils.Map(onionsReceived, func(o structs.OnionStatus) int {
+				return addressToId(o.NextHop)
+			})
+			if len(received) > 0 || len(sent) > 0 {
+				views.addView(&View{
+					Round:        round + 1,
+					NetworkId:    networkId,
+					IsNode:       true,
+					ReceivedFrom: received,
+					SentTo:       sent,
+				})
+			}
 		}
 	}
-	allValues := utils.GetValues(views.Rounds)
-	allViews := utils.Flatten(allValues)
-
-	for _, v := range allViews {
-		if views.Parties[v.Party] == nil {
-			views.Parties[v.Party] = make([]View, 0)
-		}
-		views.Parties[v.Party] = append(views.Parties[v.Party], v)
-		if views.PartiesId[v.NetworkId] == nil {
-			views.PartiesId[v.NetworkId] = make(map[int]View, 0)
-		}
-		views.PartiesId[v.NetworkId][v.Round] = v
-	}
-	return &views
+	return views
 }
 
-func (v *Views) GetNumOnionsReceived(networkId int) []int {
-	numOnionsReceived := make([]int, len(v.Rounds)+1)
-
-	for _, view := range v.PartiesId[networkId] {
-		numOnionsReceived[view.Round] = len(view.ReceivedFrom)
-	}
-	return numOnionsReceived
-
+func (v *Views) GetNumOnionsReceived(networkId int, round int) int {
+	return len(v.getView(round, networkId).ReceivedFrom)
 }
 
 func (v *Views) WhoDidTheySendTo(networkId int, round int) []int {
-	roundView := v.Rounds[round]
-	for _, view := range roundView {
-		if view.NetworkId == networkId {
-			return utils.Map(view.SentTo, addressToId)
-		}
+	if view := v.getView(round, networkId); view != nil {
+		return view.SentTo
 	}
 	return nil
 }
 
-func (v *Views) GetProbabilities() [][]float64 {
+func (v *Views) GetProbabilities(senderOfMessage int) [][]float64 {
 	probabilities := make([][]float64, len(v.Rounds))
-	senderOfMessage := 2
 	for i := range probabilities {
 		probabilities[i] = make([]float64, len(config.GlobalConfig.Nodes)+len(config.GlobalConfig.Clients)+1)
 	}
@@ -135,7 +135,7 @@ func (v *Views) GetProbabilities() [][]float64 {
 	probabilities[0][senderOfMessage] = 1.0
 
 	for round := 0; round < len(v.Rounds)-1; round++ {
-		for node := range probabilities[round][1:] {
+		for node := 1; node < len(probabilities[round]); node++ {
 			prOnionAtNodeThisRound := probabilities[round][node]
 			if prOnionAtNodeThisRound > 0 {
 				onionsSent := v.WhoDidTheySendTo(node, round)

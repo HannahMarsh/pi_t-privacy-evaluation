@@ -106,33 +106,21 @@ func (c *Client) formOnions(start structs.StartRunAPI) (onions []structs.Onion, 
 		return node.Address != c.Address && node.Address != ""
 	})
 
-	msgs := utils.Map(utils.Filter(config.GlobalConfig.Scenarios[start.Scenario].Messages, func(message config.Message) bool {
-		return message.From == c.ID
-	}), func(message config.Message) structs.Message {
-		from := config.GlobalConfig.GetClientAddress(message.From)
-		to := config.GlobalConfig.GetClientAddress(message.To)
-		return structs.NewMessage(from, to, message.Content)
-	})
-
-	messages := utils.Filter(msgs, func(message structs.Message) bool {
-		return utils.Contains(clients, func(client structs.PublicNodeApi) bool {
-			return client.Address == message.To
-		})
-	})
-
-	if len(messages) == 0 {
-		sendTo := config.GlobalConfig.GetClientAddress((len(clients) - c.ID) + 2)
-		messages = []structs.Message{structs.NewMessage(c.Address, sendTo, "empty message")}
+	var sendToClient int
+	var message string
+	if start.Scenario == 0 {
+		sendToClient = (len(clients) - c.ID) + 1
+	} else {
+		sendToClient = ((c.ID + (len(clients) - 3)) % (len(clients))) + 1
 	}
-
-	if onions, err = utils.FlatMapParallel(messages, func(msg structs.Message) ([]structs.Onion, error) {
-		if onions, err = c.processMessage(msg, nodes, clients); err != nil {
-			return nil, pl.WrapError(err, "failed to process message")
-		} else {
-			return onions, nil
-		}
-	}); err != nil {
-		return nil, pl.WrapError(err, "failed to form onions")
+	if c.ID == 1 || c.ID == 2 {
+		message = fmt.Sprintf("scenario %s from %d to %d", start.Scenario, c.ID, sendToClient)
+	} else {
+		message = "dummy message"
+	}
+	sendTo := config.GlobalConfig.GetClientAddress(sendToClient)
+	if onions, err = c.processMessage(structs.NewMessage(c.Address, sendTo, message), nodes, clients); err != nil {
+		return nil, pl.WrapError(err, "failed to process message")
 	} else {
 		return onions, nil
 	}
@@ -224,7 +212,7 @@ func (c *Client) Receive(o structs.Onion) error {
 		return pl.WrapError(err, "failed to peel onion")
 	} else {
 		slog.Info("Client received message", "from", message.From, "to", message.To, "msg", message.Msg, "o", o2)
-		go c.status.AddReceived(message)
+		go c.status.AddReceived(message, o.From)
 	}
 	return nil
 }
