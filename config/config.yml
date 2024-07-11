@@ -1,8 +1,8 @@
-N: 4          # Number of active nodes at the start of the protocol
-R: 4          # Number of clients registered with intent-to-send at the start the protocol.
-D: 10          # Average Number of dummy onions to send per message-bearing onion
+N: 20          # Number of active nodes at the start of the protocol
+R: 25          # Number of clients registered with intent-to-send at the start the protocol.
+D: 2          # Average Number of dummy onions to send per message-bearing onion
 stdDev: 1.0  # standard deviation for D
-L: 3          # Length of routing path
+L: 5          # Length of routing path
 epsilon: 0.1  # The privacy loss in the worst case scenario.
 delta: 1e-5   # The probability of differential privacy violation due to the adversary's actions.
 adversary:
@@ -14,6 +14,13 @@ adversary:
     - 2
     - 3
     - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 10
+    - 11
   alwaysDropFrom:
     - 1 # id of client that the adversary always drops onions from
 metrics:
@@ -38,6 +45,66 @@ clients:
   - id: 5
     host: 'localhost'
     port: 8105
+  - id: 6
+    host: 'localhost'
+    port: 8106
+  - id: 7
+    host: 'localhost'
+    port: 8107
+  - id: 8
+    host: 'localhost'
+    port: 8108
+  - id: 9
+    host: 'localhost'
+    port: 8109
+  - id: 10
+    host: 'localhost'
+    port: 8110
+  - id: 11
+    host: 'localhost'
+    port: 8111
+  - id: 12
+    host: 'localhost'
+    port: 8112
+  - id: 13
+    host: 'localhost'
+    port: 8113
+  - id: 14
+    host: 'localhost'
+    port: 8114
+  - id: 15
+    host: 'localhost'
+    port: 8115
+  - id: 16
+    host: 'localhost'
+    port: 8116
+  - id: 17
+    host: 'localhost'
+    port: 8117
+  - id: 18
+    host: 'localhost'
+    port: 8118
+  - id: 19
+    host: 'localhost'
+    port: 8119
+  - id: 20
+    host: 'localhost'
+    port: 8120
+  - id: 21
+    host: 'localhost'
+    port: 8121
+  - id: 22
+    host: 'localhost'
+    port: 8122
+  - id: 23
+    host: 'localhost'
+    port: 8123
+  - id: 24
+    host: 'localhost'
+    port: 8124
+  - id: 25
+    host: 'localhost'
+    port: 8125
 nodes:
   - id: 1
     host: 'localhost'
@@ -57,3 +124,45 @@ nodes:
   - id: 6
     host: 'localhost'
     port: 8086
+  - id: 7
+    host: 'localhost'
+    port: 8087
+  - id: 8
+    host: 'localhost'
+    port: 8088
+  - id: 9
+    host: 'localhost'
+    port: 8089
+  - id: 10
+    host: 'localhost'
+    port: 8090
+  - id: 11
+    host: 'localhost'
+    port: 8091
+  - id: 12
+    host: 'localhost'
+    port: 8092
+  - id: 13
+    host: 'localhost'
+    port: 8093
+  - id: 14
+    host: 'localhost'
+    port: 8094
+  - id: 15
+    host: 'localhost'
+    port: 8095
+  - id: 16
+    host: 'localhost'
+    port: 8096
+  - id: 17
+    host: 'localhost'
+    port: 8097
+  - id: 18
+    host: 'localhost'
+    port: 8098
+  - id: 19
+    host: 'localhost'
+    port: 8099
+  - id: 20
+    host: 'localhost'
+    port: 8100

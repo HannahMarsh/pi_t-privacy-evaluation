@@ -74,8 +74,8 @@ func main() {
 	var newClient *client.Client
 	for {
 		if n, err := client.NewClient(clientConfig.ID, clientConfig.Host, clientConfig.Port, baddress); err != nil {
-			slog.Error("failed to create new client. Trying again in 5 seconds. ", err)
-			time.Sleep(5 * time.Second)
+			slog.Error("failed to create new client. Trying again in 1 seconds. ", err)
+			time.Sleep(1 * time.Second)
 			continue
 		} else {
 			newClient = n

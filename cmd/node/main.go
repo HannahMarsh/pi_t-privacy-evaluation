@@ -75,8 +75,8 @@ func main() {
 	var newNode *node.Node
 	for {
 		if n, err := node.NewNode(nodeConfig.ID, nodeConfig.Host, nodeConfig.Port, baddress, utils.ContainsElement(cfg.Adversary.NodeIDs, nodeConfig.ID)); err != nil {
-			slog.Error("failed to create newNode. Trying again in 5 seconds. ", err)
-			time.Sleep(5 * time.Second)
+			slog.Error("failed to create newNode. Trying again in 1 seconds. ", err)
+			time.Sleep(1 * time.Second)
 			continue
 		} else {
 			newNode = n

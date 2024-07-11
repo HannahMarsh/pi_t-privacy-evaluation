@@ -2,14 +2,26 @@
   <configuration default="false" name="run" type="CompoundRunConfigurationType">
     <toRun name="bulletin board" type="GoApplicationRunConfiguration" />
     <toRun name="client 1" type="GoApplicationRunConfiguration" />
+    <toRun name="client 10" type="GoApplicationRunConfiguration" />
     <toRun name="client 2" type="GoApplicationRunConfiguration" />
-    <toRun name="metrics" type="GoApplicationRunConfiguration" />
+    <toRun name="client 3" type="GoApplicationRunConfiguration" />
+    <toRun name="client 4" type="GoApplicationRunConfiguration" />
+    <toRun name="client 5" type="GoApplicationRunConfiguration" />
+    <toRun name="client 6" type="GoApplicationRunConfiguration" />
+    <toRun name="client 7" type="GoApplicationRunConfiguration" />
+    <toRun name="client 8" type="GoApplicationRunConfiguration" />
+    <toRun name="client 9" type="GoApplicationRunConfiguration" />
     <toRun name="node 1" type="GoApplicationRunConfiguration" />
+    <toRun name="node 10" type="GoApplicationRunConfiguration" />
+    <toRun name="node 11" type="GoApplicationRunConfiguration" />
     <toRun name="node 2" type="GoApplicationRunConfiguration" />
     <toRun name="node 3" type="GoApplicationRunConfiguration" />
     <toRun name="node 4" type="GoApplicationRunConfiguration" />
     <toRun name="node 5" type="GoApplicationRunConfiguration" />
     <toRun name="node 6" type="GoApplicationRunConfiguration" />
+    <toRun name="node 7" type="GoApplicationRunConfiguration" />
+    <toRun name="node 8" type="GoApplicationRunConfiguration" />
+    <toRun name="node 9" type="GoApplicationRunConfiguration" />
     <method v="2" />
   </configuration>
 </component>

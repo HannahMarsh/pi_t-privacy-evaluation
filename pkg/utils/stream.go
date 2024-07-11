@@ -597,13 +597,10 @@ func FindLast[T any](items []T, f func(T) bool) *T {
 	return nil
 }
 
-func Count[T any](items []T, f func(T) bool) int {
-	if items == nil {
-		return 0
-	}
+func Count[T comparable](items []T, value T) int {
 	count := 0
 	for _, item := range items {
-		if f(item) {
+		if item == value {
 			count++
 		}
 	}
