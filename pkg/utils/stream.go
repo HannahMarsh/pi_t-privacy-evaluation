@@ -289,7 +289,7 @@ func MaxValue(values []int) int {
 }
 
 func GetValues[K comparable, V any](m map[K]V) []V {
-	values := make([]V, 0, len(m))
+	values := make([]V, 0)
 	for _, v := range m {
 		values = append(values, v)
 	}

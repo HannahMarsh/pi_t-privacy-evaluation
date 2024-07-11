@@ -1,6 +1,6 @@
-N: 20          # Number of active nodes at the start of the protocol
-R: 25          # Number of clients registered with intent-to-send at the start the protocol.
-D: 2          # Average Number of dummy onions to send per message-bearing onion
+N: 11          # Number of active nodes at the start of the protocol
+R: 10          # Number of clients registered with intent-to-send at the start the protocol.
+D: 5          # Average Number of dummy onions to send per message-bearing onion
 stdDev: 1.0  # standard deviation for D
 L: 5          # Length of routing path
 epsilon: 0.1  # The privacy loss in the worst case scenario.

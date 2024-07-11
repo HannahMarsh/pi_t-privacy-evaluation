@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -103,54 +105,59 @@ func collect(output_dir string) {
 
 	views := adversary.CollectViews(Nodes, Clients)
 
-	// Create a new file
-	file, err := os.Create("results/results.json")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	// Create a JSON encoder that writes to the file
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ") // Optional: Include indent for pretty-printing
-
-	if err = encoder.Encode(views); err != nil {
-		slog.Error("failed to marshal views", err)
-	}
-
-	slog.Info("done")
-
 	probabilities := views.GetProbabilities()
+	toPlot := probabilities[len(probabilities)-1][1 : config.GlobalConfig.R+1] // get probabilities for last round
+	probData := appendAndGetData(output_dir, "probabilities", toPlot)
+	averages := computeAverages(probData)
 
-	toPlot := probabilities[len(probabilities)-1][1 : config.GlobalConfig.R+1]
+	createPlot(averages, fmt.Sprintf("%s/%s.png", output_dir, "probabilities"))
 
-	createPlot(toPlot, output_dir+"/probabilities.png")
+	numsN := views.GetNumOnionsReceived(len(config.GlobalConfig.Clients))
+	numsN_1 := views.GetNumOnionsReceived(len(config.GlobalConfig.Clients) - 1)
+	receivedN := utils.GetLast(numsN)
+	receivedN_1 := utils.GetLast(numsN_1)
 
-	// Open the file in append mode, create it if not existing, only write mode
-	file, err = os.OpenFile(output_dir+"/data", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	slog.Info("", "receivedN", receivedN, "receivedN_1", receivedN_1)
+	//numOnionsData := appendAndGetData(output_dir, "numOnionsReceived", []float64{float64(receivedN), float64(receivedN_1)})
+	//cdf := computeCDF(numOnionsData)
+	//createPlot(cdf, fmt.Sprintf("%s/%s.png", output_dir, "numOnionsReceived"))
+
+}
+
+func appendAndGetData(output_dir string, name string, toPlot []float64) [][]float64 {
+
+	appendData(fmt.Sprintf("%s/%s.csv", output_dir, name), toPlot)
+
+	// Read and process the data
+	d, err := readCSV(fmt.Sprintf("%s/%s.csv", output_dir, name))
+	if err != nil {
+		fmt.Println("Error reading CSV:", err)
+		return nil
+	}
+	return d
+}
+
+func appendData(filePath string, newData []float64) {
+	// Convert float slice to a comma-separated string
+	line := make([]string, len(newData))
+	for i, value := range newData {
+		line[i] = fmt.Sprintf("%f", value)
+	}
+
+	// Open the file in append mode, create it if not existing
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Failed to open file: %v", err)
 		return
 	}
 	defer file.Close()
 
-	// The line to append
-	lineToAppend := strings.Join(utils.Map(toPlot, func(p float64) string {
-		return fmt.Sprintf("%f", p)
-	}), ", ") + "\n"
-
 	// Write the line to the file
-	if _, err := file.WriteString(lineToAppend); err != nil {
+	if _, err := file.WriteString(strings.Join(line, ", ") + "\n"); err != nil {
 		fmt.Printf("Failed to write to file: %v", err)
 	} else {
-		fmt.Println("Line appended successfully")
+		fmt.Println("Data appended successfully")
 	}
-
-	//for pr := range probabilities {
-	//	slog.Info("", "Round", pr)
-	//	createPlot(probabilities[pr], fmt.Sprintf("results/probabilities_round_%d.png", pr))
-	//}
-
 }
 
 func createPlot(probabilities []float64, file string) {
@@ -161,7 +168,7 @@ func createPlot(probabilities []float64, file string) {
 
 	nodeIDs := make([]string, len(probabilities))
 	for i := range nodeIDs {
-		nodeIDs[i] = fmt.Sprintf("Node %d", i)
+		nodeIDs[i] = fmt.Sprintf("%d", i)
 	}
 
 	// Create a bar chart
@@ -180,6 +187,54 @@ func createPlot(probabilities []float64, file string) {
 	if err := p.Save(8*vg.Inch, 4*vg.Inch, file); err != nil {
 		log.Panic(err)
 	}
+}
+
+func readCSV(filePath string) ([][]float64, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	reader.Comma = ',' // Set the delimiter
+
+	var data [][]float64
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			break
+		}
+
+		var row []float64
+		for _, value := range record {
+			if floatVal, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err == nil {
+				row = append(row, floatVal)
+			} else {
+				return nil, err
+			}
+		}
+		data = append(data, row)
+	}
+
+	return data, nil
+}
+
+func computeAverages(data [][]float64) []float64 {
+	if len(data) == 0 {
+		return nil
+	}
+
+	averages := make([]float64, len(data[0]))
+	for i := 0; i < len(data[0]); i++ {
+		sum := 0.0
+		for j := 0; j < len(data); j++ {
+			sum += data[j][i]
+		}
+		averages[i] = sum / float64(len(data))
+	}
+
+	return averages
 }
 
 func print2DArray(arr [][]int) {
@@ -215,5 +270,13 @@ func addressToId(addr string) int {
 	} else {
 		pl.LogNewError("addressToId(): address not found %s", addr)
 		return -1
+	}
+}
+
+func networkIdToAddress(networkId int) string {
+	if networkId <= len(config.GlobalConfig.Clients) {
+		return config.GlobalConfig.GetClientAddress(networkId)
+	} else {
+		return config.GlobalConfig.GetNodeAddress(networkId - len(config.GlobalConfig.Clients))
 	}
 }

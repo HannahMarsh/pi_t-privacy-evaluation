@@ -19,15 +19,17 @@ type View struct {
 }
 
 type Views struct {
-	Rounds  map[int][]View
-	Parties map[string][]View
+	Rounds    map[int][]View
+	Parties   map[string][]View
+	PartiesId map[int]map[int]View
 }
 
 func CollectViews(Nodes map[string]structs.NodeStatus, Clients map[string]structs.ClientStatus) *Views {
 
 	views := Views{
-		Rounds:  make(map[int][]View),
-		Parties: make(map[string][]View),
+		Rounds:    make(map[int][]View),
+		Parties:   make(map[string][]View),
+		PartiesId: make(map[int]map[int]View),
 	}
 
 	for i := 0; i <= config.GlobalConfig.L+1; i++ {
@@ -87,23 +89,28 @@ func CollectViews(Nodes map[string]structs.NodeStatus, Clients map[string]struct
 			views.Rounds[v.Round] = append(views.Rounds[v.Round], v)
 		}
 	}
+	allValues := utils.GetValues(views.Rounds)
+	allViews := utils.Flatten(allValues)
 
-	for _, v := range utils.Flatten(utils.GetValues(views.Rounds)) {
+	for _, v := range allViews {
 		if views.Parties[v.Party] == nil {
 			views.Parties[v.Party] = make([]View, 0)
 		}
 		views.Parties[v.Party] = append(views.Parties[v.Party], v)
+		if views.PartiesId[v.NetworkId] == nil {
+			views.PartiesId[v.NetworkId] = make(map[int]View, 0)
+		}
+		views.PartiesId[v.NetworkId][v.Round] = v
 	}
 	return &views
 }
 
-func (v *Views) GetNumOnionsReceived(round int) map[string]int {
-	roundView := v.Rounds[round]
-	numOnionsReceived := make(map[string]int)
-	for _, view := range roundView {
-		numOnionsReceived[view.Party] = len(view.ReceivedFrom)
-	}
+func (v *Views) GetNumOnionsReceived(networkId int) []int {
+	numOnionsReceived := make([]int, len(v.Rounds)+1)
 
+	for _, view := range v.PartiesId[networkId] {
+		numOnionsReceived[view.Round] = len(view.ReceivedFrom)
+	}
 	return numOnionsReceived
 
 }

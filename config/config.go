@@ -86,6 +86,17 @@ func (cnfg *Config) GetClientAddress(id int) string {
 	}
 }
 
+func (cnfg *Config) GetNodeAddress(id int) string {
+	if f := utils.Find(cnfg.Nodes, func(node Node) bool {
+		return node.ID == id
+	}); f != nil {
+		return f.Address
+	} else {
+		PrettyLogger.LogNewError("Node not found with id=%d", id)
+		return ""
+	}
+}
+
 var GlobalConfig *Config
 var GlobalCtx context.Context
 var GlobalCancel context.CancelFunc
