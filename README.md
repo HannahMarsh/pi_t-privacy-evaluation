@@ -39,6 +39,8 @@ $$
 
 ## Experiment Setup
 
+![](img/demo.gif)
+
 - Clients, $\[C_1...C_N\]$
   - We will choose target senders, $C_1$ and $C_2$
 - Relays, $\[R_1...R_N\]$
@@ -114,60 +116,23 @@ go test -v ./...
 Usage
 -----  
 
-All configurations are set in the [`config/config.yaml`](config/config/yaml) file.
-
-### Running the Bulletin Board
+### Running the Data Collector for a range of parameter values (specified in `static/expectedValues.json)`
 
 ```bash  
-go run cmd/bulletin-board/main.go
+go run cmd/main.go
 ```  
 
-### Running a Node
+### Running the simulation for fixed paramater values (given as command argument flags)
 
 ```bash  
-go run cmd/node/main.go -id=1
+go run cmd/run/main.go -id=1
 ```  
 
-### Running a Client
+### Running the data visualization server
 
 ```bash  
-go run cmd/client/main.go -id=1
-```  
-
-### Serving Metrics
-
-```bash  
-go run cmd/metrics/main.go -port 8200
-```  
-
-## Endpoints
-
-### Bulletin Board
-
-- **Register Client**: `POST /register`
-- **Register Node**: `POST /register`
-- **Get Active Nodes**: `GET /nodes`
-
-### Node & Client
-
-- **Receive Onion**: `POST /receive`
-- **Get Status**: `GET /status`
-- **Start Run**: `POST /start`
-
-### Metrics
-
-- **Messages**: `GET /messages`
-- **Nodes**: `GET /nodes`
-- **Clients**: `GET /clients`
-- **Checkpoint Onion Counts**: `GET /checkpoints`
-- **Visualize Onion Paths**: `GET /visualization`
-
-When implementing the onion routing protocol, it helps to run the metric collector locally which provides visualization 
-in real time of the messages and onions processes by each client and node. For a small number of clients/nodes, this makes 
-debugging the protocol easier.
-
-![](img/demo.gif)
-
+go run cmd/ui/main.go -port 8200
+```
 
 ---
 
