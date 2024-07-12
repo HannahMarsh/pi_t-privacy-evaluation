@@ -94,6 +94,7 @@ func (s *System) StartRun() error {
 		for j := range s.sent[i] {
 			for k := range s.sent[i][j] {
 				s.sent[i][j][k] = 0
+				s.received[i][j][k] = 0
 			}
 		}
 	}

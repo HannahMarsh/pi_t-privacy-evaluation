@@ -52,16 +52,20 @@
                 StdDev: getSliderValue("StdDev"),
                 Scenario: getSliderValue("Scenario"),
                 NumRuns: getSliderValue("NumRuns"),
-                BucketSize: getSliderValue("BucketSize"),
+                NumBuckets: getSliderValue("NumBuckets"),
             });
 
             const response = await fetch(`http://localhost:8200/query?${params.toString()}`);
             if (response.ok) {
-                const data = await response.statusText;
-                document.getElementById("results").textContent = data;
-                updateImageSrc("receivedR_1_img", "/plots/receivedR_1.png");
-                updateImageSrc("receivedR_img", "/plots/receivedR.png");
-                updateImageSrc("probabilities_img", "/plots/probabilities.png");
+                const data = await response.json();
+                for (const [key, value] of Object.entries(data)) {
+                    console.log(key, value);
+                    updateImageSrc(key, value);
+                }
+                // document.getElementById("results").textContent = data;
+                // updateImageSrc("receivedR_1_img", "/plots/receivedR_1.png");
+                // updateImageSrc("receivedR_img", "/plots/receivedR.png");
+                // updateImageSrc("probabilities_img", "/plots/probabilities.png");
             } else {
                 document.getElementById("results").textContent = "No data found for the given parameters";
             }
@@ -84,32 +88,43 @@
                 const slider = document.getElementById(key);
                 slider.min = 0;
                 slider.max = values.length - 1;
-                slider.value = 0; // Set to the first value initially
+                if (key === "NumRuns") {
+                    slider.value = values.length - 1; // Set to the last value initially
+                } else if (key === "N" || key === "R" || key === "D" || key === "L") {
+                    slider.Value = Math.floor(((values.length - 1) * 0.75));
+                } else {
+                    slider.value = 0; // Set to the first value initially
+                }
 
                 // Display the initial value
-                document.getElementById(`${key}-value`).textContent = values[0];
+                document.getElementById(`${key}-value`).textContent = values[slider.value];
 
             }
 
             // Set the slider min, max, and step based on values
-            const slider = document.getElementById("BucketSize");
-            slider.min = 1;
-            slider.max = 10
-            slider.value = 5; // Set to the first value initially
+            const slider = document.getElementById("NumBuckets");
+            slider.min = 5;
+            slider.max = 100;
+            slider.step = 10
+            slider.value = 20; // Set to the first value initially
 
             // Display the initial value
-            document.getElementById(`BucketSize-value`).textContent = "5";
+            document.getElementById(`NumBuckets-value`).textContent = slider.value;
         }
 
         function getSliderValue(sliderId) {
             const slider = document.getElementById(sliderId);
             const index = slider.value;
             const datalist = document.getElementById(`${sliderId}-values`);
+            if (!datalist || !datalist.options[index] || !datalist.options[index].label) {
+                return slider.value;
+            }
             return datalist.options[index].label;
         }
 
         document.addEventListener("DOMContentLoaded", () => {
             populateSliders();
+            fetchData();
             document.querySelectorAll("input[type=range]").forEach((slider) => {
                 slider.addEventListener("input", (event) => {
                     document.getElementById(`${event.target.id}-value`).textContent = getSliderValue(event.target.id);
@@ -223,14 +238,14 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="BucketSize">BucketSize:</label>
+                        <label for="NumBuckets">NumBuckets:</label>
                     </td>
                     <td>
-                        <input type="range" id="BucketSize" list="BucketSize-values" />
-                        <datalist id="BucketSize-values"></datalist>
+                        <input type="range" id="NumBuckets" list="NumBuckets-values" />
+                        <datalist id="NumBuckets-values"></datalist>
                     </td>
                     <td class="param-value">
-                        <span id="BucketSize-value" class="slider-value"></span>
+                        <span id="NumBuckets-value" class="slider-value"></span>
                     </td>
                 </tr>
             </table>

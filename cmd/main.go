@@ -63,6 +63,8 @@ func main() {
 
 	index := 0
 
+	slog.Info("", "num runs:", len(expectedValues.N)*len(expectedValues.R)*len(expectedValues.D)*len(expectedValues.L)*len(expectedValues.X)*len(expectedValues.StdDev)*len(expectedValues.Scenario)*len(expectedValues.NumRuns))
+
 	for _, N := range expectedValues.N {
 		for _, R := range expectedValues.R {
 			for _, D := range expectedValues.D {

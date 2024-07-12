@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 type AllData struct {
@@ -100,6 +101,44 @@ func main() {
 		return
 	}
 
+	slog.Info("Getting values of N...")
+	expectedValues.N = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+		return d.Params.N
+	}))
+	utils.SortOrdered(expectedValues.N)
+	slog.Info("Got values of N", "N", expectedValues.N)
+	expectedValues.R = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+		return d.Params.R
+	}))
+	utils.SortOrdered(expectedValues.R)
+	slog.Info("Geot values of R", "R", expectedValues.R)
+	expectedValues.D = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+		return d.Params.D
+	}))
+	utils.SortOrdered(expectedValues.D)
+	slog.Info("Got values of D", "D", expectedValues.D)
+	expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+		return d.Params.L
+	}))
+	utils.SortOrdered(expectedValues.L)
+	slog.Info("Got values of L", "L", expectedValues.L)
+	expectedValues.X = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) float64 {
+		return d.Params.X
+	}))
+	utils.SortOrdered(expectedValues.X)
+	slog.Info("Got values of X", "X", expectedValues.X)
+	expectedValues.StdDev = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) float64 {
+		return d.Params.StdDev
+	}))
+	utils.SortOrdered(expectedValues.StdDev)
+	slog.Info("Got values of StdDev", "StdDev", expectedValues.StdDev)
+	slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
+	expectedValues.NumRuns = utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d Data) int {
+		return len(d.Views)
+	}))+1)
+	utils.SortOrdered(expectedValues.NumRuns)
+	slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
+
 	slog.Info("All data collected")
 
 	// Start HTTP server
@@ -138,10 +177,12 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		Scenario: getIntQueryParam(r, "Scenario"),
 	}
 	numRuns := getIntQueryParam(r, "NumRuns")
-	bucketSize := getIntQueryParam(r, "BucketSize")
+	numBuckets := getIntQueryParam(r, "NumBuckets")
 
-	if bucketSize <= 0 {
-		bucketSize = 2
+	slog.Info("Querying data", "Params", p, "NumRuns", numRuns, "NumBuckets", numBuckets)
+
+	if numBuckets <= 0 {
+		numBuckets = 20
 	}
 
 	v := utils.Find(allData.Data, func(data Data) bool {
@@ -152,9 +193,14 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		v = &(allData.Data[0])
 	}
 
-	plotView(v.Views[:numRuns], bucketSize)
+	images, err := plotView(v.Views[:utils.Max(1, utils.Min(len(v.Views), numRuns))], numBuckets)
+	if err != nil {
+		slog.Error("failed to plot view", err)
+		http.Error(w, "Failed to plot view", http.StatusInternalServerError)
+		return
+	}
 
-	if err := json.NewEncoder(w).Encode([]string{"goood"}); err != nil {
+	if err := json.NewEncoder(w).Encode(images); err != nil {
 		slog.Error("failed to encode response", err)
 		http.Error(w, "Failed to encode data to JSON", http.StatusInternalServerError)
 	}
@@ -183,28 +229,85 @@ func handleExpectedValues(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func plotView(view []View, bucketSize int) {
-	if len(view) == 0 {
-		return
-	}
-	probabilities := make([]float64, len(view[0].Probabilities))
-	for i := 0; i < len(view[0].Probabilities); i++ {
-		sum := 0.0
-		for j := 0; j < len(view); j++ {
-			sum += view[j].Probabilities[i]
-		}
-		probabilities[i] = sum / float64(len(view))
-	}
-
-	createPlot("static/plots/Probabilities.png", probabilities)
-
-	cdfN, shiftN := computeCDF(utils.Map(view, getReceivedR), bucketSize)
-	cdfN_1, shiftN_1 := computeCDF(utils.Map(view, getReceivedR_1), bucketSize)
-	createCDFPlot("static/plots/ReceivedR.png", cdfN, shiftN, 2, "Client R", "Number of onions received", "CDF")
-	createCDFPlot("static/plots/ReceivedR_1.png", cdfN_1, shiftN_1, 2, "Client R-1", "Number of onions received", "CDF")
+type Images struct {
+	Probabilities string `json:"probabilities_img"`
+	ReceivedR     string `json:"receivedR_1_img"`
+	ReceivedR_1   string `json:"receivedR_img"`
 }
 
-func computeCDF(data []int, bucketSize int) ([]float64, int) {
+func plotView(view []View, numBuckets int) (Images, error) {
+	if len(view) == 0 {
+		return Images{}, pl.NewError("no views to plot")
+	}
+	probabilities := computeAverages(utils.Map(view, func(v View) []float64 {
+		return v.Probabilities
+	}))
+
+	//// Remove the directory and its contents
+	//if err := os.RemoveAll("static/plots"); err != nil {
+	//	return Images{}, pl.WrapError(err, "failed to remove directory")
+	//}
+
+	// Read the contents of the directory
+	contents, err := ioutil.ReadDir("static/plots")
+	if err != nil {
+		return Images{}, pl.WrapError(err, "failed to read directory")
+	}
+
+	// Remove each item in the directory
+	for _, item := range contents {
+		itemPath := "static/plots/" + item.Name()
+		if err = os.RemoveAll(itemPath); err != nil {
+			return Images{}, pl.WrapError(err, "failed to remove item")
+		}
+	}
+
+	//// Recreate the directory
+	//if err := os.Mkdir("static/plots", 0755); err != nil {
+	//	return Images{}, pl.WrapError(err, "failed to create directory")
+	//}
+
+	prImage, err := createPlot("Probabilities", probabilities)
+	if err != nil {
+		return Images{}, pl.WrapError(err, "failed to create plot")
+	}
+
+	cdfN, shiftN := computeCDF(utils.Map(view, getReceivedR), numBuckets)
+	cdfN_1, shiftN_1 := computeCDF(utils.Map(view, getReceivedR_1), numBuckets)
+	prReceivedR, err := createCDFPlot("ReceivedR", cdfN, shiftN, "Client R", "Number of onions received", "CDF")
+	if err != nil {
+		return Images{}, pl.WrapError(err, "failed to create CDF plot")
+	}
+	prReceivedR_1, err := createCDFPlot("ReceivedR_1", cdfN_1, shiftN_1, "Client R-1", "Number of onions received", "CDF")
+	if err != nil {
+		return Images{}, pl.WrapError(err, "failed to create CDF plot")
+	}
+
+	return Images{
+		Probabilities: prImage,
+		ReceivedR:     prReceivedR,
+		ReceivedR_1:   prReceivedR_1,
+	}, nil
+}
+
+func computeAverages(data [][]float64) []float64 {
+	if len(data) == 0 {
+		return nil
+	}
+
+	averages := make([]float64, len(data[0]))
+	for i := 0; i < len(data[0]); i++ {
+		sum := 0.0
+		for j := 0; j < len(data); j++ {
+			sum += data[j][i]
+		}
+		averages[i] = sum / float64(len(data))
+	}
+
+	return averages
+}
+
+func computeCDF(data []int, numBuckets int) ([]float64, int) {
 	// Compute frequencies
 	//freq := make(map[float64]int)
 	xMin := utils.MinOver(data)
@@ -220,6 +323,7 @@ func computeCDF(data []int, bucketSize int) ([]float64, int) {
 
 	cdf := make([]float64, 0)
 
+	bucketSize := utils.Max(1, (xMax-xMin)/utils.Max(numBuckets, 5))
 	for i := 0; i < len(freq); i += bucketSize {
 		count := 0
 		for j := i; j < utils.Min(len(freq), i+bucketSize); j++ {
@@ -230,7 +334,10 @@ func computeCDF(data []int, bucketSize int) ([]float64, int) {
 	return cdf, xMin
 }
 
-func createPlot(file string, probabilities []float64) {
+func createPlot(file string, probabilities []float64) (string, error) {
+
+	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
+
 	// Create a new plot
 	p := plot.New()
 	p.Title.Text = "Node Probabilities"
@@ -245,21 +352,24 @@ func createPlot(file string, probabilities []float64) {
 	w := vg.Points(20) // Width of the bars
 	bars, err := plotter.NewBarChart(plotter.Values(probabilities), w)
 	if err != nil {
-		log.Panic(err)
+		return "", pl.WrapError(err, "failed to create bar chart")
 	}
-	bars.LineStyle.Width = vg.Length(0)                  // No line around bars
-	bars.Color = color.Color(color.RGBA{R: 255, A: 255}) // Set the color of the bars
+	bars.LineStyle.Width = vg.Length(0)                                  // No line around bars
+	bars.Color = color.Color(color.RGBA{R: 145, G: 112, B: 222, A: 250}) // Set the color of the bars
 
 	p.Add(bars)
 	p.NominalX(nodeIDs...) // Set node IDs as labels on the X-axis
 
 	// Save the plot to a PNG file
-	if err := p.Save(8*vg.Inch, 4*vg.Inch, file); err != nil {
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
 		log.Panic(err)
 	}
+
+	return newName, nil
 }
 
-func createCDFPlot(file string, probabilities []float64, xMin int, bucketSize int, title, xLabel, yLabel string) {
+func createCDFPlot(file string, probabilities []float64, xMin int, title, xLabel, yLabel string) (string, error) {
+	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
 	// Create a new plot
 	p := plot.New()
 	p.Title.Text = title
@@ -268,23 +378,24 @@ func createCDFPlot(file string, probabilities []float64, xMin int, bucketSize in
 
 	xLabels := make([]string, len(probabilities))
 	for i := range xLabels {
-		xLabels[i] = fmt.Sprintf("%d", (i+xMin)+(i*bucketSize))
+		xLabels[i] = fmt.Sprintf("%d", (i + xMin))
 	}
 
 	// Create a bar chart
 	w := vg.Points(20) // Width of the bars
 	bars, err := plotter.NewBarChart(plotter.Values(probabilities), w)
 	if err != nil {
-		log.Panic(err)
+		return "", pl.WrapError(err, "failed to create bar chart")
 	}
-	bars.LineStyle.Width = vg.Length(0)                  // No line around bars
-	bars.Color = color.Color(color.RGBA{R: 255, A: 255}) // Set the color of the bars
+	bars.LineStyle.Width = vg.Length(0)                                  // No line around bars
+	bars.Color = color.Color(color.RGBA{R: 145, G: 112, B: 222, A: 250}) // Set the color of the bars
 
 	p.Add(bars)
 	p.NominalX(xLabels...) // Set node IDs as labels on the X-axis
 
 	// Save the plot to a PNG file
-	if err := p.Save(8*vg.Inch, 4*vg.Inch, file); err != nil {
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
 		log.Panic(err)
 	}
+	return newName, nil
 }

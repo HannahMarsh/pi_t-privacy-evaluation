@@ -41,11 +41,16 @@ func main() {
 	D := flag.Int("D", 30, "Number of layers")
 	L := flag.Int("L", 5, "Number of layers")
 	X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
-	StdDev := flag.Float64("StdDev", 1.0, "Standard deviation")
+	StdDev := flag.Float64("StdDev", 5.0, "Standard deviation")
 	Scenario := flag.Int("Scenario", 0, "Scenario")
 	numRuns := flag.Int("numRuns", 3, "Number of runs")
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
+
+	//for i := 0; i < 20; i++ {
+	//	kk := utils.Max(1, int((rand.NormFloat64()*(*StdDev))+float64(*D)))
+	//	fmt.Println(kk)
+	//}
 
 	pl.SetUpLogrusAndSlog(*logLevel)
 
