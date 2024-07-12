@@ -37,11 +37,19 @@ $$
 \Pr[\text{View}^{\mathcal{A}}(\sigma_0) \in \mathcal{V}] \leq e^{\epsilon} \cdot \Pr[\text{View}^{\mathcal{A}}(\sigma_1) \in \mathcal{V}] + \delta
 $$
 
+## Parameters
+- $R$: Number of clients
+- $N$: Number of relays
+- $L$: Path length
+- $D$: Average number of checkpoint onions created by each client
+- $\chi$: The fraction of corrupted nodes
+- _StdDev_: Standard deviation of the number of onions received by each client
+
 ## Experiment Setup
 
 ![](img/demo.gif)
 
-- Clients, $\[C_1...C_N\]$
+- Clients, $\[C_1...C_R\]$
   - We will choose target senders, $C_1$ and $C_2$
 - Relays, $\[R_1...R_N\]$
 - Adversary, $`\mathcal{A}`$
@@ -53,15 +61,15 @@ $$
 
 - We consider two neighboring scenarios for our experiment:
    - **Scenario 0 ($\sigma_0$)**:
-      - $C_1$ sends a message to $C_N$
-      - $C_2$ sends a message to $C_{N-1}$
+      - $C_1$ sends a message to $C_R$
+      - $C_2$ sends a message to $C_{R-1}$
    - **Scenario 1 ($\sigma_1$)**:
-      - $C_1$ sends a message to $C_{N-1}$
-      - $C_2$ sends a message to $C_N$
+      - $C_1$ sends a message to $C_{R-1}$
+      - $C_2$ sends a message to $C_R$
 
 - In both scenarios, there are also dummy (checkpoint) onions to provide cover traffic.
 - For example, in Scenario 1 where $C_2$ sends a message to $C_N$, the number of onions, $O_N$, received by $C_N$ will be shifted to the right by 1 compared to
-  $O_{N-1}$ since $C_{N-1}$'s onion was dropped by $`\mathcal{A}`$.
+  $O_{R-1}$ since $C_{R-1}$'s onion was dropped by $`\mathcal{A}`$.
 
 ### Adversary's Task
 
@@ -71,7 +79,7 @@ that received a message-bearing onion from $C_1$.
 
 ### _Bad_ and _Good_ Events
 
-- A "Bad event" is defined as when either $O_{N-1}$ or $O_{N}$ are "far away" from their expected values.
+- A "Bad event" is defined as when either $O_{R-1}$ or $O_{R}$ are "far away" from their expected values.
 - Conversely, a "Good event" is when both are "close" to their expected values.
 
 ### Computing the Adversary's Advantage
