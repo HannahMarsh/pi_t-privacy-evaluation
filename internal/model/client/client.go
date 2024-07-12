@@ -1,125 +1,80 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/config"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/api_functions"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
-	"io"
 	rng "math/rand"
-	"net/http"
 	"sync"
 	"time"
 )
 
 type Client struct {
-	ID               int
-	Host             string
-	Port             int
-	Address          string
-	mu               sync.RWMutex
-	BulletinBoardUrl string
-	status           *structs.ClientStatus
+	ID int
+	s  interfaces.System
 }
 
 // NewNode creates a new client instance
-func NewClient(id int, host string, port int, bulletinBoardUrl string) (*Client, error) {
+func NewClient(id int, s interfaces.System) (interfaces.Node, error) {
 	c := &Client{
-		ID:               id,
-		Host:             host,
-		Port:             port,
-		Address:          fmt.Sprintf("http://%s:%d", host, port),
-		BulletinBoardUrl: bulletinBoardUrl,
-		status:           structs.NewClientStatus(id, fmt.Sprintf("http://%s:%d", host, port)),
+		ID: id,
+		s:  s,
 	}
-
-	if err2 := c.RegisterWithBulletinBoard(); err2 != nil {
-		return nil, pl.WrapError(err2, "%s: failed to register with bulletin board", pl.GetFuncName(id, host, port, bulletinBoardUrl))
-	}
-
+	//	slog.Info("Registering client", "id", c.ID)
+	s.RegisterParty(c)
 	return c, nil
 }
 
-// RegisterWithBulletinBoard registers the client with the bulletin board
-func (c *Client) RegisterWithBulletinBoard() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if data, err := json.Marshal(structs.PublicNodeApi{
-		ID:      c.ID,
-		Address: c.Address,
-	}); err != nil {
-		return pl.WrapError(err, "%s: failed to marshal Client info", pl.GetFuncName())
-	} else {
-		url := c.BulletinBoardUrl + "/registerClient"
-		if resp, err2 := http.Post(url, "application/json", bytes.NewBuffer(data)); err2 != nil {
-			return pl.WrapError(err2, "%s: failed to send POST request to bulletin board", pl.GetFuncName())
-		} else {
-			defer func(Body io.ReadCloser) {
-				if err3 := Body.Close(); err3 != nil {
-					slog.Error(pl.GetFuncName()+": error closing response body", err2)
-				}
-			}(resp.Body)
-			if resp.StatusCode != http.StatusCreated {
-				return pl.NewError("%s: failed to register client, status code: %d, %s", pl.GetFuncName(), resp.StatusCode, resp.Status)
-			} else {
-				slog.Info("Client registered with bulletin board", "id", c.ID)
-			}
-			return nil
-		}
-	}
+func (c *Client) GetID() int {
+	return c.ID
 }
 
 var rand = rng.New(rng.NewSource(time.Now().UnixNano()))
 
 // DetermineRoutingPath determines a random routing path of a given length
-func DetermineRoutingPath(l int, participants []structs.PublicNodeApi) []structs.PublicNodeApi {
+func DetermineRoutingPath(l int, participants []int) []int {
 	p := utils.Copy(participants)[:l]
 	utils.Shuffle(p)
 	return p
 }
 
 // DetermineCheckpointRoutingPath determines a routing path with a checkpoint
-func DetermineCheckpointRoutingPath(l int, receiver structs.PublicNodeApi, layer int, nodes, clients []structs.PublicNodeApi) []structs.PublicNodeApi {
-	removed := utils.Filter(nodes, func(api structs.PublicNodeApi) bool {
-		return api.Address != receiver.Address || api.ID != receiver.ID
+func DetermineCheckpointRoutingPath(l int, receiver int, layer int, nodes, clients []int) []int {
+	removed := utils.Filter(nodes, func(node int) bool {
+		return node != receiver
 	})
 	path := DetermineRoutingPath(l-1, removed)
 	path2 := utils.InsertAtIndex(path, layer, receiver)
-	hasUnique := utils.HasUniqueElements(path2)
-	path3 := utils.InsertAtIndex(path, layer, receiver)
 
-	slog.Info("Client determining checkpoint routing path", "path", path2, "has_unique", hasUnique, "path3", path3)
+	//slog.Info("Client determining checkpoint routing path", "path", path2, "has_unique", hasUnique, "path3", path3)
 	return append(path2, utils.RandomElement(clients))
 }
 
 // formOnions forms the onions for the messages to be sent
-func (c *Client) formOnions(start structs.StartRunAPI) (onions []structs.Onion, err error) {
-	nodes := utils.Filter(utils.RemoveDuplicates(start.Nodes), func(node structs.PublicNodeApi) bool {
-		return node.Address != ""
-	})
-	clients := utils.Filter(utils.RemoveDuplicates(start.Clients), func(node structs.PublicNodeApi) bool {
-		return node.Address != c.Address && node.Address != ""
-	})
+func (c *Client) formOnions(scenario int) (onions []structs.Onion, err error) {
+
+	clients := c.s.GetClients()
+	nodes := c.s.GetNodes()
 
 	var sendToClient int
 	var message string
-	if start.Scenario == 0 {
+	if scenario == 0 {
 		sendToClient = (len(clients) - c.ID) + 1
 	} else {
 		sendToClient = ((c.ID + (len(clients) - 3)) % (len(clients))) + 1
 	}
+	if sendToClient == 0 {
+		slog.Info("sendToClient is 0", "sendToClient", sendToClient, "len(clients)", len(clients))
+	}
 	if c.ID == 1 || c.ID == 2 {
-		message = fmt.Sprintf("scenario %s from %d to %d", start.Scenario, c.ID, sendToClient)
+		message = fmt.Sprintf("scenario %s from %d to %d", scenario, c.ID, sendToClient)
 	} else {
 		message = "dummy message"
 	}
-	sendTo := config.GlobalConfig.GetClientAddress(sendToClient)
-	if onions, err = c.processMessage(structs.NewMessage(c.Address, sendTo, message), nodes, clients); err != nil {
+	if onions, err = c.processMessage(structs.NewMessage(c.ID, sendToClient, message), nodes, utils.RemoveElement(clients, c.ID)); err != nil {
 		return nil, pl.WrapError(err, "failed to process message")
 	} else {
 		return onions, nil
@@ -127,19 +82,17 @@ func (c *Client) formOnions(start structs.StartRunAPI) (onions []structs.Onion, 
 }
 
 // processMessage processes a single message to form its onion
-func (c *Client) processMessage(msg structs.Message, nodes, clients []structs.PublicNodeApi) (onions []structs.Onion, err error) {
+func (c *Client) processMessage(msg structs.Message, nodes, clients []int) (onions []structs.Onion, err error) {
 	onions = make([]structs.Onion, 0)
 
-	path := utils.Map(DetermineRoutingPath(config.GlobalConfig.L, nodes), func(node structs.PublicNodeApi) string {
-		return node.Address
-	})
+	path := DetermineRoutingPath(c.s.GetParams().L, nodes)
 	path = append(path, msg.To)
 	o, err := c.formOnion(msg, path)
 	onions = append(onions, o)
 
-	numCheckPointOnionsToSend := utils.Max(1, int((rand.NormFloat64()*config.GlobalConfig.StdDev)+float64(config.GlobalConfig.D)))
+	numCheckPointOnionsToSend := utils.Max(1, int((rand.NormFloat64()*c.s.GetParams().StdDev)+float64(c.s.GetParams().D)))
 
-	slog.Info("Client creating checkpoint onions", "num_onions", numCheckPointOnionsToSend)
+	//slog.Info("Client creating checkpoint onions", "num_onions", numCheckPointOnionsToSend)
 
 	// create checkpoint onions
 	for i := 0; i < numCheckPointOnionsToSend; i++ {
@@ -152,27 +105,24 @@ func (c *Client) processMessage(msg structs.Message, nodes, clients []structs.Pu
 	return onions, nil
 }
 
-func (c *Client) formOnion(msg structs.Message, path []string) (onion structs.Onion, err error) {
+func (c *Client) formOnion(msg structs.Message, path []int) (onion structs.Onion, err error) {
 	onion, err = structs.NewOnion(msg, len(path))
 	for _, hop := range utils.Reverse(path)[1:] {
 		if onion, err = onion.AddLayer(hop); err != nil {
 			return onion, pl.WrapError(err, "failed to add layer")
 		}
 	}
-	onion.From = c.Address
-	go c.status.AddSent(msg, path)
+	onion.From = c.ID
 	return onion, nil
 }
 
 // createCheckpointOnions creates checkpoint onions for the routing path
-func (c *Client) createCheckpointOnion(nodes, clients []structs.PublicNodeApi) (onion structs.Onion, err error) {
-	l := config.GlobalConfig.L
+func (c *Client) createCheckpointOnion(nodes, clients []int) (onion structs.Onion, err error) {
+	l := c.s.GetParams().L
 	layer := rand.Intn(l)
 	receiver := utils.RandomElement(nodes)
-	path := utils.Map(DetermineCheckpointRoutingPath(l, receiver, layer, nodes, clients), func(node structs.PublicNodeApi) string {
-		return node.Address
-	})
-	dummyMsg := structs.NewMessage(c.Address, path[len(path)-1], "checkpoint onion")
+	path := DetermineCheckpointRoutingPath(l, receiver, layer, nodes, clients)
+	dummyMsg := structs.NewMessage(c.ID, path[len(path)-1], "checkpoint onion")
 	if onion, err = c.formOnion(dummyMsg, path); err != nil {
 		return onion, pl.WrapError(err, "failed to form onion")
 	} else {
@@ -180,24 +130,20 @@ func (c *Client) createCheckpointOnion(nodes, clients []structs.PublicNodeApi) (
 	}
 }
 
-func (c *Client) startRun(start structs.StartRunAPI) error {
+func (c *Client) StartRun(scenario int) error {
 
-	slog.Info("Client starting run", "num clients", len(start.Clients), "num nodes", len(start.Nodes))
-
-	if toSend, err := c.formOnions(start); err != nil {
+	if toSend, err := c.formOnions(scenario); err != nil {
 		return pl.WrapError(err, "failed to form toSend")
 	} else {
-		numToSend := len(toSend)
-
-		slog.Info("Client sending onions", "num_onions", numToSend)
+		//slog.Info("Client sending onions", "num_onions", numToSend)
 
 		var wg sync.WaitGroup
-		wg.Add(numToSend)
 		for _, onion := range toSend {
-			go func(onion structs.Onion) {
+			wg.Add(1)
+			go func(o structs.Onion) {
 				defer wg.Done()
-				if err = api_functions.SendOnion(onion); err != nil {
-					slog.Error("failed to send onions", err)
+				if err = c.s.Send(0, c.ID, o.To, o); err != nil {
+					slog.Error(fmt.Sprintf("failed to send onions (%d, %d, %d)", o.Layer, c.ID, o.To), err)
 				}
 			}(onion)
 		}
@@ -208,15 +154,11 @@ func (c *Client) startRun(start structs.StartRunAPI) error {
 }
 
 func (c *Client) Receive(o structs.Onion) error {
-	if o2, message, err := o.Peel(); err != nil {
+	if _, _, err := o.Peel(); err != nil {
 		return pl.WrapError(err, "failed to peel onion")
 	} else {
-		slog.Info("Client received message", "from", message.From, "to", message.To, "msg", message.Msg, "o", o2)
-		go c.status.AddReceived(message, o.From)
+		//slog.Info("Client received message", "from", message.From, "to", message.To, "msg", message.Msg, "o", o2)
 	}
+	c.s.Receive(o.Layer, o.From, o.To)
 	return nil
-}
-
-func (c *Client) GetStatus() string {
-	return c.status.GetStatus()
 }

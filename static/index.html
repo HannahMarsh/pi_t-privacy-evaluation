@@ -1,11 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0;url=pages/messages">
-    <title>Redirecting...</title>
+    <meta charset="UTF-8" />
+    <title>Parameter Slider UI</title>
+    <style>
+        .slider-container {
+            width: 300px;
+            align-items: center;
+        }
+        .slider-container label {
+            width: 70px;
+        }
+        .slider-container input {
+            flex: 1;
+        }
+        .slider-value {
+            width: 40px;
+            text-align: center;
+        }
+        td {
+            vertical-align: top;
+        }
+        table.params {
+            margin-left: 20px;
+        }
+        td.param-label {
+            padding-right: 10px;
+        }
+        td.param-value {
+            padding-left: 20px;
+        }
+        img {
+            padding-bottom: 50px;
+            padding-left: 50px;
+            width: 600px;
+        }
+    </style>
+    <script>
+        async function fetchData() {
+            const params = new URLSearchParams({
+                N: getSliderValue("N"),
+                R: getSliderValue("R"),
+                D: getSliderValue("D"),
+                L: getSliderValue("L"),
+                X: getSliderValue("X"),
+                StdDev: getSliderValue("StdDev"),
+                Scenario: getSliderValue("Scenario"),
+                NumRuns: getSliderValue("NumRuns"),
+            });
+
+            const response = await fetch(`http://localhost:8200/query?${params.toString()}`);
+            if (response.ok) {
+                const data = await response.statusText;
+                document.getElementById("results").textContent = data;
+            } else {
+                document.getElementById("results").textContent = "No data found for the given parameters";
+            }
+        }
+
+        async function populateSliders() {
+            const response = await fetch("http://localhost:8200/expected");
+            const expectedValues = await response.json();
+
+            for (const [key, values] of Object.entries(expectedValues)) {
+
+                const datalist = document.getElementById(`${key}-values`);
+                values.forEach((value, index) => {
+                    const option = document.createElement("option");
+                    option.value = index;
+                    option.label = value;
+                    datalist.appendChild(option);
+                });
+                // Set the slider min, max, and step based on values
+                const slider = document.getElementById(key);
+                slider.min = 0;
+                slider.max = values.length - 1;
+                slider.value = 0; // Set to the first value initially
+
+                // Display the initial value
+                document.getElementById(`${key}-value`).textContent = values[0];
+
+            }
+        }
+
+        function getSliderValue(sliderId) {
+            const slider = document.getElementById(sliderId);
+            const index = slider.value;
+            const datalist = document.getElementById(`${sliderId}-values`);
+            return datalist.options[index].label;
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            populateSliders();
+            document.querySelectorAll("input[type=range]").forEach((slider) => {
+                slider.addEventListener("input", (event) => {
+                    document.getElementById(`${event.target.id}-value`).textContent = getSliderValue(event.target.id);
+                    fetchData();
+                });
+            });
+        });
+    </script>
 </head>
 <body>
-<p>If you are not redirected automatically, follow this <a href="http://localhost:8200/pages/messages">/pages/messages</a>.</p>
+<h1>Parameter Slider UI</h1>
+<table>
+    <tr>
+        <td>
+            <table class="params">
+                <tr>
+                    <td class="param-label">
+                        <label for="N">N:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="N" list="N-values" />
+                        <datalist id="N-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="N-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="R">R:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="R" list="R-values" />
+                        <datalist id="R-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="R-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="D">D:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="D" list="D-values" />
+                        <datalist id="D-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="D-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="L">L:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="L" list="L-values" />
+                        <datalist id="L-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="L-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="X">X:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="X" list="X-values" step="0.01" />
+                        <datalist id="X-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="X-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="StdDev">StdDev:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="StdDev" list="StdDev-values" step="0.1" />
+                        <datalist id="StdDev-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="StdDev-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="Scenario">Scenario:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="Scenario" list="Scenario-values" />
+                        <datalist id="Scenario-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="Scenario-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="NumRuns">NumRuns:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="NumRuns" list="NumRuns-values" />
+                        <datalist id="NumRuns-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="NumRuns-value" class="slider-value"></span>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td>
+            <table>
+                <tr>
+                    <td>
+                        <img src="/plots/receivedR_1.png" alt=""/>
+                    </td>
+                    <td>
+                        <img src="/plots/receivedR.png" alt=""/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <img src="/plots/probabilities.png" alt=""/>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<div id="results"></div>
 </body>
 </html>

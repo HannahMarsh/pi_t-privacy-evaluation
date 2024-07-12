@@ -136,6 +136,12 @@ func (s *Stream[T]) MapToBool(f func(T) bool) *Stream[bool] {
 	}
 }
 
+func ForEach[T any](items []T, f func(T)) {
+	for _, item := range items {
+		f(item)
+	}
+}
+
 func (s *Stream[T]) MapToString(f func(T) string) *Stream[string] {
 	var mappedValues []string
 	for _, v := range s.Array {

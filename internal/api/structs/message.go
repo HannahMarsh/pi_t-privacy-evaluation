@@ -5,13 +5,13 @@ import (
 )
 
 type Message struct {
-	From string
-	To   string
+	From int
+	To   int
 	Msg  string
 	Hash string
 }
 
-func NewMessage(from, to, msg string) Message {
+func NewMessage(from, to int, msg string) Message {
 	h := utils.GenerateUniqueHash()
 	return Message{
 		From: from,

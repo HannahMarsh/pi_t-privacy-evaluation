@@ -7,8 +7,8 @@ import (
 )
 
 type Onion struct {
-	To        string
-	From      string
+	To        int
+	From      int
 	Layer     int
 	IsMessage bool
 	Onion     string
@@ -21,14 +21,13 @@ func NewOnion(msg Message, layer int) (Onion, error) {
 	}
 	return Onion{
 		To:        msg.To,
-		From:      "",
 		Layer:     layer,
 		IsMessage: true,
 		Onion:     base64.StdEncoding.EncodeToString(mBytes),
 	}, nil
 }
 
-func (o Onion) AddLayer(receiver string) (Onion, error) {
+func (o Onion) AddLayer(receiver int) (Onion, error) {
 	o.From = receiver
 	oBytes, err := json.Marshal(o)
 	if err != nil {
@@ -36,7 +35,6 @@ func (o Onion) AddLayer(receiver string) (Onion, error) {
 	}
 	return Onion{
 		To:        receiver,
-		From:      "",
 		Layer:     o.Layer - 1,
 		IsMessage: false,
 		Onion:     base64.StdEncoding.EncodeToString(oBytes),

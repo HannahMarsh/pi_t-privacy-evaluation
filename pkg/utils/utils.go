@@ -157,6 +157,25 @@ func generatePermutations(arr []bool, start int, result *[][]bool) {
 	}
 }
 
+func NewIntArray(start, end int) []int {
+	arr := make([]int, end-start)
+	for i := range arr {
+		arr[i] = i + start
+	}
+	return arr
+}
+
+func RandomSubset[T any](array []T, size int) []T {
+	elements := Copy(array)
+	if size >= len(elements) {
+		return elements
+	}
+	r.Shuffle(len(elements), func(i, j int) {
+		elements[i], elements[j] = elements[j], elements[i]
+	})
+	return elements[:size]
+}
+
 func ContainsElement[T comparable](elements []T, element T) bool {
 	for _, e := range elements {
 		if e == element {
