@@ -48,7 +48,7 @@ $$
 - $D$: Average number of checkpoint onions created by each client
 - $\chi$: The fraction of corrupted nodes
 - _StdDev_: Standard deviation of the number of onions received by each client
-- $x$: Server load (calculated as the number of checkpoint onions over the number of relays)
+- $x$: Signaficantly less than number of clients. Server load (calculated as the number of checkpoint onions over the number of relays)
 
 ## Experiment Setup
 
