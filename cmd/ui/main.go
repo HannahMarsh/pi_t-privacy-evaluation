@@ -138,6 +138,11 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		Scenario: getIntQueryParam(r, "Scenario"),
 	}
 	numRuns := getIntQueryParam(r, "NumRuns")
+	bucketSize := getIntQueryParam(r, "BucketSize")
+
+	if bucketSize <= 0 {
+		bucketSize = 2
+	}
 
 	v := utils.Find(allData.Data, func(data Data) bool {
 		return data.Params == p
@@ -145,10 +150,9 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 
 	if v == nil {
 		v = &(allData.Data[0])
-		return
 	}
 
-	plotView(v.Views[:numRuns])
+	plotView(v.Views[:numRuns], bucketSize)
 
 	if err := json.NewEncoder(w).Encode([]string{"goood"}); err != nil {
 		slog.Error("failed to encode response", err)
@@ -179,7 +183,7 @@ func handleExpectedValues(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func plotView(view []View) {
+func plotView(view []View, bucketSize int) {
 	if len(view) == 0 {
 		return
 	}
@@ -194,13 +198,13 @@ func plotView(view []View) {
 
 	createPlot("static/plots/Probabilities.png", probabilities)
 
-	cdfN, shiftN := computeCDF(utils.Map(view, getReceivedR))
-	cdfN_1, shiftN_1 := computeCDF(utils.Map(view, getReceivedR_1))
+	cdfN, shiftN := computeCDF(utils.Map(view, getReceivedR), bucketSize)
+	cdfN_1, shiftN_1 := computeCDF(utils.Map(view, getReceivedR_1), bucketSize)
 	createCDFPlot("static/plots/ReceivedR.png", cdfN, shiftN, 2, "Client R", "Number of onions received", "CDF")
 	createCDFPlot("static/plots/ReceivedR_1.png", cdfN_1, shiftN_1, 2, "Client R-1", "Number of onions received", "CDF")
 }
 
-func computeCDF(data []int) ([]float64, int) {
+func computeCDF(data []int, bucketSize int) ([]float64, int) {
 	// Compute frequencies
 	//freq := make(map[float64]int)
 	xMin := utils.MinOver(data)
@@ -216,9 +220,9 @@ func computeCDF(data []int) ([]float64, int) {
 
 	cdf := make([]float64, 0)
 
-	for i := 0; i < len(freq); i += 2 {
+	for i := 0; i < len(freq); i += bucketSize {
 		count := 0
-		for j := i; j < utils.Min(len(freq), i+2); j++ {
+		for j := i; j < utils.Min(len(freq), i+bucketSize); j++ {
 			count += freq[j]
 		}
 		cdf = append(cdf, float64(count)/float64(cumulativeSum))

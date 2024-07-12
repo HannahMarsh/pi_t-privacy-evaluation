@@ -36,14 +36,14 @@ type Data struct {
 func main() {
 	// Define command-line flags
 	logLevel := flag.String("log-level", "debug", "Log level")
-	N := *flag.Int("N", 10, "Number of nodes")
-	R := *flag.Int("R", 10, "Number of clients")
-	D := *flag.Int("D", 30, "Number of layers")
-	L := *flag.Int("L", 5, "Number of layers")
-	X := *flag.Float64("X", 1.0, "Fraction of corrupted nodes")
-	StdDev := *flag.Float64("StdDev", 1.0, "Standard deviation")
-	Scenario := *flag.Int("Scenario", 0, "Scenario")
-	numRuns := *flag.Int("numRuns", 3, "Number of runs")
+	N := flag.Int("N", 10, "Number of nodes")
+	R := flag.Int("R", 10, "Number of clients")
+	D := flag.Int("D", 30, "Number of layers")
+	L := flag.Int("L", 5, "Number of layers")
+	X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
+	StdDev := flag.Float64("StdDev", 1.0, "Standard deviation")
+	Scenario := flag.Int("Scenario", 0, "Scenario")
+	numRuns := flag.Int("numRuns", 3, "Number of runs")
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
 
@@ -56,16 +56,15 @@ func main() {
 	}
 
 	p := interfaces.Params{
-		N:        N,
-		R:        R,
-		L:        L,
-		D:        D,
-		X:        X,
-		StdDev:   StdDev,
-		Scenario: Scenario,
+		N:        *N,
+		R:        *R,
+		L:        *L,
+		D:        *D,
+		X:        *X,
+		StdDev:   *StdDev,
+		Scenario: *Scenario,
 	}
-	runs := make([]View, numRuns)
-	//multi := make([]MultiView, numRuns)
+	runs := make([]View, *numRuns)
 
 	cn := utils.RandomSubset(utils.NewIntArray(p.R+1, p.R+p.N+1), int(p.X*float64(p.N)))
 	isNodeCorrupted := utils.Map(utils.NewIntArray(p.R+1, p.R+p.N+1), func(id int) bool {
@@ -95,7 +94,7 @@ func main() {
 	}
 	//slog.Info("Starting runs", "N", N, "R", R, "D", D, "L", L, "X", X, "StdDev", StdDev, "Scenario", Scenario)
 
-	for i := 0; i < numRuns; i++ {
+	for i := 0; i < *numRuns; i++ {
 		if err := newSystem.StartRun(); err != nil {
 			slog.Error("failed to start run", err)
 			os.Exit(1)
@@ -106,7 +105,7 @@ func main() {
 		receivedR_1 := newSystem.GetNumOnionsReceived(p.R - 1)
 
 		runs[i] = View{
-			Probabilities: probabilities,
+			Probabilities: probabilities[:p.R+1],
 			ReceivedR:     receivedR,
 			ReceivedR_1:   receivedR_1,
 		}

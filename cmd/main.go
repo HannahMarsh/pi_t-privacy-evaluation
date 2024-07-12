@@ -58,8 +58,8 @@ func main() {
 		return
 	}
 
-	from := 0
-	to := 10000
+	//from := 0
+	//to := 10000
 
 	index := 0
 
@@ -72,13 +72,13 @@ func main() {
 							for _, StdDev := range expectedValues.StdDev {
 								for _, Scenario := range expectedValues.Scenario {
 
-									if index > to {
-										return
-									}
-									if index < from {
-										index++
-										continue
-									}
+									//if index > to {
+									//	return
+									//}
+									//if index < from {
+									//	index++
+									//	continue
+									//}
 									index++
 
 									// Convert all the numeric parameters to strings

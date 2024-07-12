@@ -52,6 +52,7 @@
                 StdDev: getSliderValue("StdDev"),
                 Scenario: getSliderValue("Scenario"),
                 NumRuns: getSliderValue("NumRuns"),
+                BucketSize: getSliderValue("BucketSize"),
             });
 
             const response = await fetch(`http://localhost:8200/query?${params.toString()}`);
@@ -89,6 +90,15 @@
                 document.getElementById(`${key}-value`).textContent = values[0];
 
             }
+
+            // Set the slider min, max, and step based on values
+            const slider = document.getElementById("BucketSize");
+            slider.min = 1;
+            slider.max = 10
+            slider.value = 5; // Set to the first value initially
+
+            // Display the initial value
+            document.getElementById(`BucketSize-value`).textContent = "5";
         }
 
         function getSliderValue(sliderId) {
@@ -209,6 +219,18 @@
                     </td>
                     <td class="param-value">
                         <span id="NumRuns-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="BucketSize">BucketSize:</label>
+                    </td>
+                    <td>
+                        <input type="range" id="BucketSize" list="BucketSize-values" />
+                        <datalist id="BucketSize-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="BucketSize-value" class="slider-value"></span>
                     </td>
                 </tr>
             </table>
