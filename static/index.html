@@ -35,6 +35,12 @@
             padding-left: 50px;
             width: 600px;
         }
+        img.probabilities {
+            width: 1200px;
+        }
+        #top10 {
+            text-align: center;
+        }
     </style>
     <script>
 
@@ -60,7 +66,11 @@
                 const data = await response.json();
                 for (const [key, value] of Object.entries(data)) {
                     console.log(key, value);
-                    updateImageSrc(key, value);
+                    if (key === "top10") {
+                        document.getElementById("top10").textContent = value;
+                    } else {
+                        updateImageSrc(key, value);
+                    }
                 }
                 // document.getElementById("results").textContent = data;
                 // updateImageSrc("receivedR_1_img", "/plots/receivedR_1.png");
@@ -88,12 +98,23 @@
                 const slider = document.getElementById(key);
                 slider.min = 0;
                 slider.max = values.length - 1;
-                if (key === "NumRuns") {
-                    slider.value = values.length - 1; // Set to the last value initially
-                } else if (key === "N" || key === "R" || key === "D" || key === "L") {
-                    slider.Value = Math.floor(((values.length - 1) * 0.75));
+                if (values.length === 1) {
+                    slider.value = 0;
+                    slider.disabled = true;
+                    slider.classList.add('disabled');
                 } else {
-                    slider.value = 0; // Set to the first value initially
+                    if (key === "NumBuckets") {
+                        slider.value = values.findIndex(number => number > 30);
+                        if (slider.value === -1) {
+                            slider.value = values.length - 1;
+                        }
+                    } else if (key === "NumRuns") {
+                        slider.value = values.length - 1; // Set to the last value initially
+                    } else if (key === "N" || key === "R" || key === "D" || key === "L") {
+                        slider.Value = Math.floor(((values.length - 1) * 0.75));
+                    } else {
+                        slider.value = 0; // Set to the first value initially
+                    }
                 }
 
                 // Display the initial value
@@ -101,15 +122,15 @@
 
             }
 
-            // Set the slider min, max, and step based on values
-            const slider = document.getElementById("NumBuckets");
-            slider.min = 5;
-            slider.max = 100;
-            slider.step = 10
-            slider.value = 20; // Set to the first value initially
-
-            // Display the initial value
-            document.getElementById(`NumBuckets-value`).textContent = slider.value;
+            // // Set the slider min, max, and step based on values
+            // const slider = document.getElementById("NumBuckets");
+            // slider.min = 5;
+            // slider.max = 100;
+            // slider.step = 10
+            // slider.value = 20; // Set to the first value initially
+            //
+            // // Display the initial value
+            // document.getElementById(`NumBuckets-value`).textContent = slider.value;
         }
 
         function getSliderValue(sliderId) {
@@ -261,8 +282,12 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>
-                        <img id="probabilities_img" src="/plots/probabilities.png" alt=""/>
+                    <td colspan="2">
+
+                        <img id="probabilities_img" class="probabilities" src="/plots/probabilities.png" alt=""/>
+                        <div id="top10">
+                            Top10 probabilities
+                        </div>
                     </td>
                 </tr>
             </table>

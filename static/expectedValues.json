@@ -1,10 +1,3 @@
-{
-  "D": [10, 20, 30],
-  "L": [5, 10, 15, 20],
-  "N": [50, 100, 150, 200],
-  "NumRuns": [30, 40, 50],
-  "R": [50, 100, 150, 200],
-  "Scenario": [0, 1],
-  "StdDev": [4.0],
-  "X": [1]
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:d36d2e95984fcab1a2c5323fcce1d7eab5774ed746461f3d6d690d0f1f2e49f6
+size 214

@@ -48,14 +48,15 @@ var expectedValues ExpectedValues
 
 // Define your data structure
 type ExpectedValues struct {
-	N        []int     `json:"N"`
-	R        []int     `json:"R"`
-	D        []int     `json:"D"`
-	L        []int     `json:"L"`
-	X        []float64 `json:"X"`
-	StdDev   []float64 `json:"StdDev"`
-	Scenario []int     `json:"Scenario"`
-	NumRuns  []int     `json:"NumRuns"`
+	N          []int     `json:"N"`
+	R          []int     `json:"R"`
+	D          []int     `json:"D"`
+	L          []int     `json:"L"`
+	X          []float64 `json:"X"`
+	StdDev     []float64 `json:"StdDev"`
+	Scenario   []int     `json:"Scenario"`
+	NumRuns    []int     `json:"NumRuns"`
+	NumBuckets []int     `json:"NumBuckets"`
 }
 
 func main() {
@@ -138,6 +139,17 @@ func main() {
 	}))+1)
 	utils.SortOrdered(expectedValues.NumRuns)
 	slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
+	maxBuckets := utils.MaxOver(utils.Map(allData.Data, func(d Data) int {
+		r := utils.Map(d.Views, getReceivedR)
+		return utils.MaxOver(r) - utils.MinOver(r) + 1
+	}))
+	expectedValues.NumBuckets = utils.Filter(utils.Map(utils.NewIntArray(1, 5), func(i int) int {
+		return maxBuckets / (5 - i)
+	}), func(i int) bool {
+		return i > 5
+	})
+	utils.SortOrdered(expectedValues.NumBuckets)
+	slog.Info("Got values of NumBuckets", "NumBuckets", expectedValues.NumBuckets)
 
 	slog.Info("All data collected")
 
@@ -233,6 +245,7 @@ type Images struct {
 	Probabilities string `json:"probabilities_img"`
 	ReceivedR     string `json:"receivedR_1_img"`
 	ReceivedR_1   string `json:"receivedR_img"`
+	Top10         string `json:"top10"`
 }
 
 func plotView(view []View, numBuckets int) (Images, error) {
@@ -267,7 +280,7 @@ func plotView(view []View, numBuckets int) (Images, error) {
 	//	return Images{}, pl.WrapError(err, "failed to create directory")
 	//}
 
-	prImage, err := createPlot("Probabilities", probabilities)
+	prImage, top10, err := createPlot("Probabilities", probabilities)
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create plot")
 	}
@@ -287,6 +300,7 @@ func plotView(view []View, numBuckets int) (Images, error) {
 		Probabilities: prImage,
 		ReceivedR:     prReceivedR,
 		ReceivedR_1:   prReceivedR_1,
+		Top10:         top10,
 	}, nil
 }
 
@@ -334,25 +348,42 @@ func computeCDF(data []int, numBuckets int) ([]float64, int) {
 	return cdf, xMin
 }
 
-func createPlot(file string, probabilities []float64) (string, error) {
+func createPlot(file string, probabilities []float64) (string, string, error) {
 
 	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
+
+	type temp struct {
+		value float64
+		label string
+	}
+
+	t := make([]temp, len(probabilities))
+	for i := range probabilities {
+		t[i] = temp{value: probabilities[i], label: fmt.Sprintf("%d", i+1)}
+	}
+
+	utils.Sort(t, func(i, j temp) bool {
+		return i.value > j.value
+	})
+
+	probabilities = utils.Map(t, func(i temp) float64 {
+		return i.value
+	})
 
 	// Create a new plot
 	p := plot.New()
 	p.Title.Text = "Node Probabilities"
 	p.Y.Label.Text = "Probability"
 
-	nodeIDs := make([]string, len(probabilities))
-	for i := range nodeIDs {
-		nodeIDs[i] = fmt.Sprintf("%d", i+1)
-	}
+	nodeIDs := utils.Map(t, func(i temp) string {
+		return i.label
+	})
 
 	// Create a bar chart
 	w := vg.Points(20) // Width of the bars
 	bars, err := plotter.NewBarChart(plotter.Values(probabilities), w)
 	if err != nil {
-		return "", pl.WrapError(err, "failed to create bar chart")
+		return "", "", pl.WrapError(err, "failed to create bar chart")
 	}
 	bars.LineStyle.Width = vg.Length(0)                                  // No line around bars
 	bars.Color = color.Color(color.RGBA{R: 145, G: 112, B: 222, A: 250}) // Set the color of the bars
@@ -360,12 +391,18 @@ func createPlot(file string, probabilities []float64) (string, error) {
 	p.Add(bars)
 	p.NominalX(nodeIDs...) // Set node IDs as labels on the X-axis
 
+	// Display top 10 most likely elements
+	top10 := "Top 10 Most Likely Receivers:\n"
+	for i := 0; i < 10 && i < len(t); i++ {
+		top10 += fmt.Sprintf(", %s", t[i].label)
+	}
+
 	// Save the plot to a PNG file
-	if err := p.Save(8*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
+	if err := p.Save(16*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
 		log.Panic(err)
 	}
 
-	return newName, nil
+	return newName, top10, nil
 }
 
 func createCDFPlot(file string, probabilities []float64, xMin int, title, xLabel, yLabel string) (string, error) {

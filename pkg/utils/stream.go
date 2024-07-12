@@ -4,9 +4,9 @@ import (
 	"cmp"
 	"context"
 	"github.com/HannahMarsh/PrettyLogger"
-	"github.com/jfcg/sorty/v2"
 	"math/rand"
 	"runtime"
+	"sort"
 	"sync"
 	"sync/atomic"
 )
@@ -623,19 +623,22 @@ func ParallelFind[T any](items []T, f func(T) bool) *T {
 }
 
 func Sort[T any](items []T, less func(T, T) bool) {
-	// Define the Lesswap function required by sorty
-	lesswap := func(i, k, r, s int) bool {
-		if less(items[i], items[k]) {
-			if r != s {
-				items[r], items[s] = items[s], items[r]
-			}
-			return true
-		}
-		return false
-	}
-
-	// Call sorty.Sort with the length of the items and the lesswap function
-	sorty.Sort(len(items), lesswap)
+	sort.Slice(items, func(i, j int) bool {
+		return less(items[i], items[j])
+	})
+	//// Define the Lesswap function required by sorty
+	//lesswap := func(i, k, r, s int) bool {
+	//	if less(items[i], items[k]) {
+	//		if r != s {
+	//			items[r], items[s] = items[s], items[r]
+	//		}
+	//		return true
+	//	}
+	//	return false
+	//}
+	//
+	//// Call sorty.Sort with the length of the items and the lesswap function
+	//sorty.Sort(len(items), lesswap)
 }
 
 func SortOrdered[T cmp.Ordered](items []T) {
