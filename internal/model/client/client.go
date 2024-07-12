@@ -135,7 +135,7 @@ func (c *Client) StartRun(scenario int) error {
 	if toSend, err := c.formOnions(scenario); err != nil {
 		return pl.WrapError(err, "failed to form toSend")
 	} else {
-		//slog.Info("Client sending onions", "num_onions", numToSend)
+		//slog.Info("Client sending onions")
 
 		var wg sync.WaitGroup
 		for _, onion := range toSend {

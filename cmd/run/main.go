@@ -130,10 +130,21 @@ func main() {
 
 	//	slog.Info("All data collected")
 
-	allData.Data = append(allData.Data, Data{
-		Params: p,
-		Views:  runs,
-	})
+	didAppend := false
+	for i := range allData.Data {
+		if allData.Data[i].Params == p {
+			allData.Data[i].Views = append(allData.Data[i].Views, runs...)
+			didAppend = true
+		}
+	}
+
+	if !didAppend {
+
+		allData.Data = append(allData.Data, Data{
+			Params: p,
+			Views:  runs,
+		})
+	}
 
 	// Marshal the updated struct back into JSON
 	updatedJSON, err := json.MarshalIndent(allData, "", "  ")

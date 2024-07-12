@@ -58,8 +58,8 @@ func main() {
 		return
 	}
 
-	from := 1
-	to := 10
+	from := 0
+	to := 10000
 
 	index := 0
 

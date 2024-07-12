@@ -37,6 +37,11 @@
         }
     </style>
     <script>
+
+        function updateImageSrc(imageId, fileName) {
+            const img = document.getElementById(imageId);
+            img.src = fileName + '?t=' + new Date().getTime();
+        }
         async function fetchData() {
             const params = new URLSearchParams({
                 N: getSliderValue("N"),
@@ -53,6 +58,9 @@
             if (response.ok) {
                 const data = await response.statusText;
                 document.getElementById("results").textContent = data;
+                updateImageSrc("receivedR_1_img", "/plots/receivedR_1.png");
+                updateImageSrc("receivedR_img", "/plots/receivedR.png");
+                updateImageSrc("probabilities_img", "/plots/probabilities.png");
             } else {
                 document.getElementById("results").textContent = "No data found for the given parameters";
             }
@@ -209,15 +217,15 @@
             <table>
                 <tr>
                     <td>
-                        <img src="/plots/receivedR_1.png" alt=""/>
+                        <img id="receivedR_1_img" src="/plots/receivedR_1.png" alt=""/>
                     </td>
                     <td>
-                        <img src="/plots/receivedR.png" alt=""/>
+                        <img id="receivedR_img" src="/plots/receivedR.png" alt=""/>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <img src="/plots/probabilities.png" alt=""/>
+                        <img id="probabilities_img" src="/plots/probabilities.png" alt=""/>
                     </td>
                 </tr>
             </table>

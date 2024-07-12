@@ -40,9 +40,15 @@ func NewSystem(p interfaces.Params) interfaces.System {
 }
 
 func (s *System) Receive(layer, from, to int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.received[layer][from][to]++
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.received[layer][from][to]++
+	}()
+	wg.Wait()
 }
 
 func (s *System) GetClients() []int {
@@ -62,11 +68,15 @@ func (s *System) RegisterParty(n interfaces.Node) {
 }
 
 func (s *System) Send(layer, from, to int, o structs.Onion) error {
-	defer func() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.sent[layer][from][to] = s.sent[layer][from][to] + 1
 	}()
+	wg.Wait()
 	node := s.getNode(to)
 	if node == nil {
 		return pl.NewError("node with id %d not found", to)
@@ -102,7 +112,7 @@ func (s *System) StartRun() error {
 		wg.Add(1)
 		go func(n interfaces.Node) {
 			defer wg.Done()
-			if err2 := node.StartRun(s.p.Scenario); err2 != nil {
+			if err2 := n.StartRun(s.p.Scenario); err2 != nil {
 				pl.LogNewError("failed to start run", err2)
 				mu.Lock()
 				defer mu.Unlock()

@@ -144,7 +144,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if v == nil {
-		http.Error(w, "No data found for the given parameters", http.StatusNotFound)
+		v = &(allData.Data[0])
 		return
 	}
 
