@@ -41,8 +41,12 @@ $$
 \Pr[\text{View}^{\mathcal{A}}(\sigma_0) \in \mathcal{V}] \leq e^{\epsilon} \cdot \Pr[\text{View}^{\mathcal{A}}(\sigma_1) \in \mathcal{V}] + \delta
 $$
 
+TODO Add back PRF for checkpoint onions
+
+
 ## Parameters
-- $R$: Number of clients
+- NumRuns $= R \cdot N $
+- $R$: Number of clients. R^2
 - $N$: Number of relays
 - $L$: Path length, i.e. number of rounds
 - $D$: Average number of checkpoint onions created by each client
