@@ -1,6 +1,8 @@
 # Evaluating Privacy of the $\Pi_t$ Protocol :tulip:
 
-
+## TODO
+- calculate multiplicative difference for neighboring datasets
+- 
 
 ## Introduction
 
@@ -11,6 +13,8 @@ to infer the location of message-bearing onions.
 For an implementation of $`\Pi_t`$, see [github.com/HannahMarsh/pi_t-experiment](https://github.com/HannahMarsh/pi_t-experiment)
 
 &nbsp;
+
+TODO: update this figure to remove "Mixer" and "Gatekeeper" roles
 
 <figure>
   <figcaption><b>Figure 1</b> - <em>Routing Path Visualization, Example "Scenario 0" (with N clients, R Relays, l1 mixers, and l rounds)</em></figcaption>
@@ -40,10 +44,11 @@ $$
 ## Parameters
 - $R$: Number of clients
 - $N$: Number of relays
-- $L$: Path length
+- $L$: Path length, i.e. number of rounds
 - $D$: Average number of checkpoint onions created by each client
 - $\chi$: The fraction of corrupted nodes
 - _StdDev_: Standard deviation of the number of onions received by each client
+- $x$: Server load (calculated as the number of checkpoint onions over the number of relays)
 
 ## Experiment Setup
 
