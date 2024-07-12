@@ -50,10 +50,9 @@ var expectedValues ExpectedValues
 type ExpectedValues struct {
 	N          []int     `json:"N"`
 	R          []int     `json:"R"`
-	D          []int     `json:"D"`
+	ServerLoad []int     `json:"ServerLoad"`
 	L          []int     `json:"L"`
 	X          []float64 `json:"X"`
-	StdDev     []float64 `json:"StdDev"`
 	Scenario   []int     `json:"Scenario"`
 	NumRuns    []int     `json:"NumRuns"`
 	NumBuckets []int     `json:"NumBuckets"`
@@ -113,11 +112,11 @@ func main() {
 	}))
 	utils.SortOrdered(expectedValues.R)
 	slog.Info("Geot values of R", "R", expectedValues.R)
-	expectedValues.D = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
-		return d.Params.D
+	expectedValues.ServerLoad = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+		return int(d.Params.ServerLoad)
 	}))
-	utils.SortOrdered(expectedValues.D)
-	slog.Info("Got values of D", "D", expectedValues.D)
+	utils.SortOrdered(expectedValues.ServerLoad)
+	slog.Info("Got values of ServerLoad", "ServerLoad", expectedValues.ServerLoad)
 	expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
 		return d.Params.L
 	}))
@@ -128,11 +127,7 @@ func main() {
 	}))
 	utils.SortOrdered(expectedValues.X)
 	slog.Info("Got values of X", "X", expectedValues.X)
-	expectedValues.StdDev = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) float64 {
-		return d.Params.StdDev
-	}))
-	utils.SortOrdered(expectedValues.StdDev)
-	slog.Info("Got values of StdDev", "StdDev", expectedValues.StdDev)
+
 	slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
 	expectedValues.NumRuns = utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d Data) int {
 		return len(d.Views)
@@ -180,13 +175,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {
 	p := interfaces.Params{
-		N:        getIntQueryParam(r, "N"),
-		R:        getIntQueryParam(r, "R"),
-		D:        getIntQueryParam(r, "D"),
-		L:        getIntQueryParam(r, "L"),
-		X:        getFloatQueryParam(r, "X"),
-		StdDev:   getFloatQueryParam(r, "StdDev"),
-		Scenario: getIntQueryParam(r, "Scenario"),
+		N:          getIntQueryParam(r, "N"),
+		R:          getIntQueryParam(r, "R"),
+		ServerLoad: getIntQueryParam(r, "ServerLoad"),
+		L:          getIntQueryParam(r, "L"),
+		X:          getFloatQueryParam(r, "X"),
+		Scenario:   getIntQueryParam(r, "Scenario"),
 	}
 	numRuns := getIntQueryParam(r, "NumRuns")
 	numBuckets := getIntQueryParam(r, "NumBuckets")
@@ -198,7 +192,9 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := utils.Find(allData.Data, func(data Data) bool {
-		return data.Params == p
+		a := data.Params
+		b := p
+		return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == b.Scenario
 	})
 
 	if v == nil {
@@ -379,9 +375,13 @@ func createPlot(file string, probabilities []float64) (string, string, error) {
 		return i.label
 	})
 
+	// Calculate bar width based on the number of points
+	plotWidth := 16 * vg.Inch
+	barWidth := plotWidth / vg.Length(len(probabilities)*2)
+
 	// Create a bar chart
-	w := vg.Points(20) // Width of the bars
-	bars, err := plotter.NewBarChart(plotter.Values(probabilities), w)
+	//w := vg.Points(20) // Width of the bars
+	bars, err := plotter.NewBarChart(plotter.Values(probabilities), barWidth)
 	if err != nil {
 		return "", "", pl.WrapError(err, "failed to create bar chart")
 	}
@@ -418,9 +418,13 @@ func createCDFPlot(file string, probabilities []float64, xMin int, title, xLabel
 		xLabels[i] = fmt.Sprintf("%d", (i + xMin))
 	}
 
+	// Calculate bar width based on the number of points
+	plotWidth := 8 * vg.Inch
+	barWidth := plotWidth / vg.Length(len(probabilities)*2)
+
 	// Create a bar chart
-	w := vg.Points(20) // Width of the bars
-	bars, err := plotter.NewBarChart(plotter.Values(probabilities), w)
+	//w := vg.Points(20) // Width of the bars
+	bars, err := plotter.NewBarChart(plotter.Values(probabilities), barWidth)
 	if err != nil {
 		return "", pl.WrapError(err, "failed to create bar chart")
 	}

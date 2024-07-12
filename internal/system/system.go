@@ -173,3 +173,30 @@ func (s *System) GetProbabilities(senderOfMessage int) []float64 {
 	}
 	return utils.GetLast(probabilities)
 }
+
+func (s *System) GetReverseProbabilities(receiverOfMessage int) []float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	probabilities := make([][]float64, s.GetParams().L+2)
+	for i := range probabilities {
+		probabilities[i] = make([]float64, s.p.R+s.p.N+1)
+	}
+	probabilities[s.GetParams().L+1][receiverOfMessage] = 1.0
+
+	for round := s.GetParams().L + 1; round > 0; round-- {
+		for from := range s.received[round] {
+			if prOnionAtNodeThisRound := probabilities[round][from]; prOnionAtNodeThisRound > 0 {
+				totalOnionsSent := float64(utils.Sum(s.received[round][from]))
+				if totalOnionsSent > 0 {
+					for to := range s.sent[round][from] {
+						if s.received[round][from][to] > 0 {
+							probabilityAtNextHop := float64(s.received[round][from][to]) / totalOnionsSent
+							probabilities[round-1][to] = probabilities[round-1][to] + (prOnionAtNodeThisRound * probabilityAtNextHop)
+						}
+					}
+				}
+			}
+		}
+	}
+	return utils.GetLast(probabilities)
+}

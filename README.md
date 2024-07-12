@@ -1,8 +1,12 @@
 # Evaluating Privacy of the $\Pi_t$ Protocol :tulip:
 
 ## TODO
-- calculate multiplicative difference for neighboring datasets
-- 
+- Update role of $\epsilon$ based on interpretations from [On the `Semantics' of Differential Privacy: A Bayesian Formulation](https://arxiv.org/abs/0803.3946)
+  -  <s> $e^{\epsilon}$ should bound the ratio of areas under the cumulative distribution curves for number of onions received by clients $C_{R}$ and $C_{R-1}$ </s> . However this doesn't take into account the information leaked by the routing itself
+  - Instead, compute the likelihood of being in Scenario 0 or Scenario 1 based on the observations (who is sending to whom,
+    the number of onions received, and the routing information).
+  - Need to clarify what exactly are the observables. 
+  - The ratio should be bounded by $e^{\epsilon}$. (likely logorithmic)
 
 ## Introduction
 
@@ -82,9 +86,10 @@ TODO Add back PRF for checkpoint onions
 
 ### Adversary's Task
 
-The adversary observes the network volume (number of onions each client and node are sending and receiving). Each round, the adversary updates the
+The adversary observes the network volume (number of onions each client and node are sending and receiving), along with routing information (who each node are sending to/receiving from each round). 
+<s> Each round, the adversary updates the
 probability distribution of where the message-bearing onion is likely located. The adversary's goal is to determine the most probable client $\[C_2...C_N\]$
-that received a message-bearing onion from $C_1$.
+that received a message-bearing onion from $C_1$. </s>
 
 ### _Bad_ and _Good_ Events
 

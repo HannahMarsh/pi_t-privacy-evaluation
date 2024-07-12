@@ -52,7 +52,7 @@
             const params = new URLSearchParams({
                 N: getSliderValue("N"),
                 R: getSliderValue("R"),
-                D: getSliderValue("D"),
+                ServerLoad: getSliderValue("ServerLoad"),
                 L: getSliderValue("L"),
                 X: getSliderValue("X"),
                 StdDev: getSliderValue("StdDev"),
@@ -110,15 +110,22 @@
                         }
                     } else if (key === "NumRuns") {
                         slider.value = values.length - 1; // Set to the last value initially
-                    } else if (key === "N" || key === "R" || key === "D" || key === "L") {
+                    } else if (key === "N" || key === "R" || key === "ServerLoad" || key === "L") {
                         slider.Value = Math.floor(((values.length - 1) * 0.75));
                     } else {
                         slider.value = 0; // Set to the first value initially
                     }
                 }
 
-                // Display the initial value
-                document.getElementById(`${key}-value`).textContent = values[slider.value];
+                if (key !== "ServerLoad") {
+                    // Display the initial value
+                    document.getElementById(`${key}-value`).textContent = values[slider.value];
+                } else {
+                    let L = parseFloat(getSliderValue("L"));
+                    let N = parseFloat(getSliderValue("N"));
+                    let serverLoad = ((N / L) / 3) * parseFloat(values[slider.value])
+                    document.getElementById(`${key}-value`).textContent = serverLoad.toString();
+                }
 
             }
 
@@ -187,14 +194,14 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="D">D:</label>
+                        <label for="ServerLoad">ServerLoad:</label>
                     </td>
                     <td>
-                        <input type="range" id="D" list="D-values" />
-                        <datalist id="D-values"></datalist>
+                        <input type="range" id="ServerLoad" list="ServerLoad-values" />
+                        <datalist id="ServerLoad-values"></datalist>
                     </td>
                     <td class="param-value">
-                        <span id="D-value" class="slider-value"></span>
+                        <span id="ServerLoad-value" class="slider-value"></span>
                     </td>
                 </tr>
                 <tr>

@@ -38,17 +38,16 @@ func main() {
 	logLevel := flag.String("log-level", "debug", "Log level")
 	N := flag.Int("N", 10, "Number of nodes")
 	R := flag.Int("R", 10, "Number of clients")
-	D := flag.Int("D", 30, "Number of layers")
+	ServerLoad := flag.Int("ServerLoad", 2, "Number of layers")
 	L := flag.Int("L", 5, "Number of layers")
 	X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
-	StdDev := flag.Float64("StdDev", 5.0, "Standard deviation")
 	Scenario := flag.Int("Scenario", 0, "Scenario")
 	numRuns := flag.Int("numRuns", 3, "Number of runs")
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
 
 	//for i := 0; i < 20; i++ {
-	//	kk := utils.Max(1, int((rand.NormFloat64()*(*StdDev))+float64(*D)))
+	//	kk := utils.Max(1, int((rand.NormFloat64()*(*StdDev))+float64(*ServerLoad)))
 	//	fmt.Println(kk)
 	//}
 
@@ -60,14 +59,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	serverLoad := float64(*N) / float64(*L)
+	serverLoad = serverLoad / float64(3)
+	serverLoad = serverLoad * float64(*ServerLoad)
+
 	p := interfaces.Params{
-		N:        *N,
-		R:        *R,
-		L:        *L,
-		D:        *D,
-		X:        *X,
-		StdDev:   *StdDev,
-		Scenario: *Scenario,
+		N:          *N,
+		R:          *R,
+		L:          *L,
+		D:          serverLoad,
+		ServerLoad: *ServerLoad,
+		X:          *X,
+		Scenario:   *Scenario,
 	}
 	runs := make([]View, *numRuns)
 
@@ -97,7 +100,7 @@ func main() {
 		}
 		nodes[id] = c
 	}
-	//slog.Info("Starting runs", "N", N, "R", R, "D", D, "L", L, "X", X, "StdDev", StdDev, "Scenario", Scenario)
+	//slog.Info("Starting runs", "N", N, "R", R, "ServerLoad", ServerLoad, "L", L, "X", X, "StdDev", StdDev, "Scenario", Scenario)
 
 	for i := 0; i < *numRuns; i++ {
 		if err := newSystem.StartRun(); err != nil {

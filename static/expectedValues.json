@@ -1,3 +1,10 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f81dde5abc404c155c070ecc04ae65e845eb2da8a00ec795ebde7c72be233e7f
-size 219
+{
+  "ServerLoad": [1, 2, 3],
+  "L": [5, 10, 15, 20],
+  "N": [50, 100, 150, 200],
+  "NumRuns": [30, 40, 50],
+  "R": [50, 100, 150, 200],
+  "Scenario": [0, 1],
+  "X": [1],
+  "NumBuckets": [20, 30, 40]
+}

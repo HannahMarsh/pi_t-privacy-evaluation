@@ -81,6 +81,15 @@ func (c *Client) formOnions(scenario int) (onions []structs.Onion, err error) {
 	}
 }
 
+func (c *Client) prf1(p interfaces.Params) int {
+	prob := (float64(p.L) * p.D) / float64(p.N)
+	if rand.Float64() < prob {
+		return 0
+	} else {
+		return 1
+	}
+}
+
 // processMessage processes a single message to form its onion
 func (c *Client) processMessage(msg structs.Message, nodes, clients []int) (onions []structs.Onion, err error) {
 	onions = make([]structs.Onion, 0)
@@ -90,17 +99,26 @@ func (c *Client) processMessage(msg structs.Message, nodes, clients []int) (onio
 	o, err := c.formOnion(msg, path)
 	onions = append(onions, o)
 
-	numCheckPointOnionsToSend := utils.Max(1, int((rand.NormFloat64()*c.s.GetParams().StdDev)+float64(c.s.GetParams().D)))
-
-	//slog.Info("Client creating checkpoint onions", "num_onions", numCheckPointOnionsToSend)
-
-	// create checkpoint onions
-	for i := 0; i < numCheckPointOnionsToSend; i++ {
-		if o, err = c.createCheckpointOnion(nodes, clients); err != nil {
-			return nil, pl.WrapError(err, "failed to create checkpoint onion")
+	for i := range path[:len(path)-1] {
+		if c.prf1(c.s.GetParams()) == 0 {
+			if o, err = c.createCheckpointOnion(i, nodes, clients); err != nil {
+				return nil, pl.WrapError(err, "failed to create checkpoint onion")
+			}
+			onions = append(onions, o)
 		}
-		onions = append(onions, o)
 	}
+	//
+	//numCheckPointOnionsToSend := utils.Max(1, int((rand.NormFloat64()*4.0)+float64(c.s.GetParams().ServerLoad)))
+	//
+	////slog.Info("Client creating checkpoint onions", "num_onions", numCheckPointOnionsToSend)
+	//
+	//// create checkpoint onions
+	//for i := 0; i < numCheckPointOnionsToSend; i++ {
+	//	if o, err = c.createCheckpointOnion(i + 1, nodes, clients); err != nil {
+	//		return nil, pl.WrapError(err, "failed to create checkpoint onion")
+	//	}
+	//	onions = append(onions, o)
+	//}
 
 	return onions, nil
 }
@@ -117,9 +135,8 @@ func (c *Client) formOnion(msg structs.Message, path []int) (onion structs.Onion
 }
 
 // createCheckpointOnions creates checkpoint onions for the routing path
-func (c *Client) createCheckpointOnion(nodes, clients []int) (onion structs.Onion, err error) {
+func (c *Client) createCheckpointOnion(layer int, nodes, clients []int) (onion structs.Onion, err error) {
 	l := c.s.GetParams().L
-	layer := rand.Intn(l)
 	receiver := utils.RandomElement(nodes)
 	path := DetermineCheckpointRoutingPath(l, receiver, layer, nodes, clients)
 	dummyMsg := structs.NewMessage(c.ID, path[len(path)-1], "checkpoint onion")

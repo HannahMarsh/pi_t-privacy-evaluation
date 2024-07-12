@@ -21,11 +21,11 @@ type System interface {
 }
 
 type Params struct {
-	N        int     `json:"N"`
-	R        int     `json:"R"`
-	L        int     `json:"L"`
-	D        int     `json:"D"`
-	X        float64 `json:"X"`
-	StdDev   float64 `json:"StdDev"`
-	Scenario int     `json:"Scenario"`
+	N          int `json:"N"`
+	R          int `json:"R"`
+	L          int `json:"L"`
+	D          float64
+	ServerLoad int     `json:"ServerLoad"`
+	X          float64 `json:"X"`
+	Scenario   int     `json:"Scenario"`
 }
