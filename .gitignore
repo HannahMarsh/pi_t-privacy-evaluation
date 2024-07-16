@@ -21,6 +21,9 @@ github.com/
 **/.factorypath
 google
 
+static/data.json
+static/*.png
+
 test_report*
 
 # Go Workspaces (introduced in Go 1.18+)
