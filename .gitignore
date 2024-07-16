@@ -22,7 +22,7 @@ github.com/
 google
 
 static/data.json
-static/*.png
+static/plots/*.png
 
 test_report*
 
