@@ -1,8 +1,8 @@
 # Evaluating Privacy of the $\Pi_t$ Protocol :tulip:
 
 ## TODO
-- Update role of $\epsilon$ based on interpretations from [On the `Semantics' of Differential Privacy: A Bayesian Formulation](https://arxiv.org/abs/0803.3946)
-  -  <s> $e^{\epsilon}$ should bound the ratio of areas under the cumulative distribution curves for number of onions received by clients $C_{R}$ and $C_{R-1}$ </s> . However this doesn't take into account the information leaked by the routing itself
+- Update role of &epsilon; based on interpretations from [On the `Semantics' of Differential Privacy: A Bayesian Formulation](https://arxiv.org/abs/0803.3946)
+  -  $e^{\epsilon}$ <s> should bound the ratio of areas under the cumulative distribution curves for number of onions received by clients $C_{R}$ and $C_{R-1}$ </s> . However this doesn't take into account the information leaked by the routing itself
   - Instead, compute the likelihood of being in Scenario 0 or Scenario 1 based on the observations (who is sending to whom,
     the number of onions received, and the routing information).
   - Need to clarify what exactly are the observables. 
@@ -32,13 +32,13 @@ TODO: update this figure to remove "Mixer" and "Gatekeeper" roles
 In the context of $`\Pi_t`$ and other onion routing protocols, a more nuanced form of differential privacy, called [ _($`\epsilon`$, $`\delta`$)-Differential Privacy_ ](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf), ensures that an adversary observing network traffic cannot (with high confidence)
 distinguish between two neighboring communication patterns. This means that the inclusion or exclusion of a single individual's data does not significantly affect the outcome of any analysis.
 
-Epsilon ($`\epsilon`$) and delta ($`\delta`$) are the parameters that define our _($`\epsilon`$, $`\delta`$)-differential privacy_ guarantees:
-- **$\epsilon$**: A non-negative parameter that bounds the multiplicative difference in probabilities of any outcome
-  occurring whether an individual's data is included or not. Smaller values of $`\epsilon`$ indicate stronger privacy guarantees.
+Epsilon (&epsilon;) and delta ($`\delta`$) are the parameters that define our _(&epsilon;, $`\delta`$)-differential privacy_ guarantees:
+- **&epsilon;**: A non-negative parameter that bounds the multiplicative difference in probabilities of any outcome
+  occurring whether an individual's data is included or not. Smaller values of &epsilon; indicate stronger privacy guarantees.
 - **$\delta$**: A non-negative parameter that bounds the additive difference in probabilities, allowing for a small
   probability of error. Smaller values of $`\delta`$ also indicate stronger privacy guarantees.
 
-Formally, a randomized algorithm or mechanism is _($`\epsilon`$, $`\delta`$)-differentially private_ if for every pair of neighboring inputs
+Formally, a randomized algorithm or mechanism is _&epsilon;, $`\delta`$)-differentially private_ if for every pair of neighboring inputs
 $`\sigma_0`$ and $`\sigma_1`$ and for every set $`\mathcal{V}`$ of adversarial views,
 
 $$
@@ -50,13 +50,12 @@ TODO Add back PRF for checkpoint onions
 
 ## Parameters
 - NumRuns $= R \cdot N $
-- $R$: Number of clients. R^2
+- $R$: Number of clients. 
 - $N$: Number of relays
 - $L$: Path length, i.e. number of rounds
-- $D$: Average number of checkpoint onions created by each client
 - $\chi$: The fraction of corrupted nodes
-- _StdDev_: Standard deviation of the number of onions received by each client
-- $x$: Signaficantly less than number of clients. Server load (calculated as the number of checkpoint onions over the number of relays)
+- $x$: Server load (number of onions processed per node per round)
+- &epsilon;: Determines bound ($e^{\epsilon}$) for multiplicative difference
 
 ## Experiment Setup
 
