@@ -86,43 +86,43 @@
             for (const [key, values] of Object.entries(expectedValues)) {
 
                 const datalist = document.getElementById(`${key}-values`);
-                values.forEach((value, index) => {
-                    const option = document.createElement("option");
-                    option.value = index;
-                    option.label = value;
-                    datalist.appendChild(option);
-                });
-                // Set the slider min, max, and step based on values
-                const slider = document.getElementById(key);
-                slider.min = 0;
-                slider.max = values.length - 1;
-                if (values.length === 1) {
-                    slider.value = 0;
-                    slider.disabled = true;
-                    slider.classList.add('disabled');
-                } else {
-                    if (key === "NumBuckets") {
-                        slider.value = values.findIndex(number => number > 30);
-                        if (slider.value === -1) {
-                            slider.value = values.length - 1;
-                        }
-                    } else if (key === "NumRuns") {
-                        slider.value = values.length - 1; // Set to the last value initially
-                    } else if (key === "N" || key === "R" || key === "ServerLoad" || key === "L") {
-                        slider.Value = Math.floor(((values.length - 1) * 0.75));
+                if (datalist) {
+                    values.forEach((value, index) => {
+                        const option = document.createElement("option");
+                        option.value = index;
+                        option.label = value;
+                        datalist.appendChild(option);
+                    });
+                    // Set the slider min, max, and step based on values
+                    const slider = document.getElementById(key);
+                    slider.min = 0;
+                    slider.max = values.length - 1;
+                    if (values.length === 1) {
+                        slider.value = 0;
+                        slider.disabled = true;
+                        slider.classList.add('disabled');
                     } else {
-                        slider.value = 0; // Set to the first value initially
+                        if (key === "NumBuckets") {
+                            slider.value = Math.floor(((values.length - 1) * 0.5));
+                        } else if (key === "NumRuns") {
+                            slider.value = values.length - 1; // Set to the last value initially
+                        } else if (key === "N" || key === "R" || key === "ServerLoad" || key === "L") {
+                            slider.Value = Math.floor(((values.length - 1) * 0.75));
+                        } else {
+                            slider.value = 0; // Set to the first value initially
+                        }
                     }
-                }
-
-                if (key !== "ServerLoad") {
-                    // Display the initial value
                     document.getElementById(`${key}-value`).textContent = values[slider.value];
-                } else {
-                    let L = parseFloat(getSliderValue("L"));
-                    let N = parseFloat(getSliderValue("N"));
-                    let serverLoad = ((N / L) / 3) * parseFloat(values[slider.value])
-                    document.getElementById(`${key}-value`).textContent = serverLoad.toString();
+
+                    // if (key !== "ServerLoad") {
+                    //     // Display the initial value
+                    //     document.getElementById(`${key}-value`).textContent = values[slider.value];
+                    // } else {
+                    //     let L = parseFloat(getSliderValue("L"));
+                    //     let N = parseFloat(getSliderValue("N"));
+                    //     let serverLoad = ((N / L) / 3) * parseFloat(values[slider.value])
+                    //     document.getElementById(`${key}-value`).textContent = serverLoad.toString();
+                    // }
                 }
 
             }
@@ -140,21 +140,25 @@
 
         function getSliderValue(sliderId) {
             const slider = document.getElementById(sliderId);
-            const index = slider.value;
-            const datalist = document.getElementById(`${sliderId}-values`);
-            if (!datalist || !datalist.options[index] || !datalist.options[index].label) {
-                return slider.value;
+            if (slider) {
+                const index = slider.value;
+                const datalist = document.getElementById(`${sliderId}-values`);
+                if (!datalist || !datalist.options[index] || !datalist.options[index].label) {
+                    return slider.value;
+                }
+                return datalist.options[index].label;
+            } else {
+                return 0;
             }
-            return datalist.options[index].label;
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            populateSliders();
-            fetchData();
-            document.querySelectorAll("input[type=range]").forEach((slider) => {
-                slider.addEventListener("input", (event) => {
-                    document.getElementById(`${event.target.id}-value`).textContent = getSliderValue(event.target.id);
-                    fetchData();
+            populateSliders().then(() => fetchData()).then(() => {
+                document.querySelectorAll("input[type=range]").forEach((slider) => {
+                    slider.addEventListener("input", (event) => {
+                        document.getElementById(`${event.target.id}-value`).textContent = getSliderValue(event.target.id);
+                        fetchData();
+                    });
                 });
             });
         });
@@ -229,31 +233,6 @@
                     </td>
                     <td class="param-value">
                         <span id="X-value" class="slider-value"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="param-label">
-                        <label for="StdDev">StdDev:</label>
-                    </td>
-                    <td>
-                        <input type="range" id="StdDev" list="StdDev-values" step="0.1" />
-                        <datalist id="StdDev-values"></datalist>
-                    </td>
-                    <td class="param-value">
-                        <span id="StdDev-value" class="slider-value"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="param-label">
-                        <label for="Scenario">Scenario:</label><br>
-                        <span class="description">(filter the scenario (1 or 2))</span>
-                    </td>
-                    <td>
-                        <input type="range" id="Scenario" list="Scenario-values" />
-                        <datalist id="Scenario-values"></datalist>
-                    </td>
-                    <td class="param-value">
-                        <span id="Scenario-value" class="slider-value"></span>
                     </td>
                 </tr>
                 <tr>

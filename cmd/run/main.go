@@ -24,7 +24,7 @@ func main() {
 	logLevel := flag.String("log-level", "debug", "Log level")
 	N := flag.Int("N", 10, "Number of nodes")
 	R := flag.Int("R", 10, "Number of clients")
-	ServerLoad := flag.Int("ServerLoad", 2, "Number of layers")
+	ServerLoad := flag.Int("ServerLoad", 2, "Serverload")
 	L := flag.Int("L", 5, "Number of layers")
 	X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
 	Scenario := flag.Int("Scenario", 0, "Scenario")
@@ -53,7 +53,6 @@ func main() {
 		N:          *N,
 		R:          *R,
 		L:          *L,
-		D:          serverLoad,
 		ServerLoad: *ServerLoad,
 		X:          *X,
 		Scenario:   *Scenario,

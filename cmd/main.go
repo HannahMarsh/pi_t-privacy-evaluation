@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
@@ -14,18 +15,7 @@ import (
 	"strconv"
 )
 
-// Define your data structure
-type ExpectedValues struct {
-	N          []int     `json:"N"`
-	R          []int     `json:"R"`
-	ServerLoad []int     `json:"ServerLoad"`
-	L          []int     `json:"L"`
-	X          []float64 `json:"X"`
-	Scenario   []int     `json:"Scenario"`
-	NumRuns    []int     `json:"NumRuns"`
-}
-
-var expectedValues ExpectedValues
+var expectedValues view.ExpectedValues
 
 //var multiRuns map[interfaces.Params][]MultiView
 
@@ -67,45 +57,46 @@ func main() {
 			for _, D := range expectedValues.ServerLoad {
 				for _, L := range expectedValues.L {
 					if L < N {
-						for _, X := range expectedValues.X {
-							for _, Scenario := range expectedValues.Scenario {
+						if D*N <= R*L {
+							for _, X := range expectedValues.X {
+								for _, Scenario := range expectedValues.Scenario {
 
-								//if index > to {
-								//	return
-								//}
-								//if index < from {
-								//	index++
-								//	continue
-								//}
-								index++
+									//if index > to {
+									//	return
+									//}
+									//if index < from {
+									//	index++
+									//	continue
+									//}
+									index++
 
-								// Convert all the numeric parameters to strings
-								NStr := strconv.Itoa(N)
-								RStr := strconv.Itoa(R)
-								DStr := strconv.Itoa(D)
-								LStr := strconv.Itoa(L)
-								XStr := fmt.Sprintf("%f", X)
-								ScenarioStr := strconv.Itoa(Scenario)
-								numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
+									// Convert all the numeric parameters to strings
+									NStr := strconv.Itoa(N)
+									RStr := strconv.Itoa(R)
+									DStr := strconv.Itoa(D)
+									LStr := strconv.Itoa(L)
+									XStr := fmt.Sprintf("%f", X)
+									ScenarioStr := strconv.Itoa(Scenario)
+									numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
 
-								// Create the command
-								cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr)
+									// Create the command
+									cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr)
 
-								// Run the command and capture its output
-								output, err := cmd.CombinedOutput()
-								if err != nil {
-									fmt.Printf("Error running command: %v\n", err)
-									return
-								}
+									// Run the command and capture its output
+									output, err := cmd.CombinedOutput()
+									if err != nil {
+										fmt.Printf("Error running command: %v\n", err)
+										return
+									}
 
-								// Print the output
-								fmt.Printf("%s%d, ", output, index)
-								if index%40 == 0 {
-									fmt.Println()
+									// Print the output
+									fmt.Printf("%s%d, ", output, index)
+									if index%40 == 0 {
+										fmt.Println()
+									}
 								}
 							}
 						}
-
 					}
 				}
 			}

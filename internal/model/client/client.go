@@ -82,7 +82,11 @@ func (c *Client) formOnions(scenario int) (onions []structs.Onion, err error) {
 }
 
 func (c *Client) prf1(p interfaces.Params) int {
-	prob := (float64(p.L) * p.D) / float64(p.N)
+	avNumOnionsToSend := ((float64(p.ServerLoad) * float64(p.N)) / float64(p.R)) - 1.0
+	prob := avNumOnionsToSend / float64(p.L)
+
+	//slog.Info("Client prf1", "prob", prob, "avNumOnionsToSend", avNumOnionsToSend)
+	//prob := (float64(p.L) * p.D) / float64(p.N)
 	if rand.Float64() < prob {
 		return 0
 	} else {

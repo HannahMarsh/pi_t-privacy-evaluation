@@ -113,16 +113,10 @@ func main() {
 	defaults.Scenario = expectedValues.Scenario[0]
 	utils.SortOrdered(expectedValues.NumRuns)
 	slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
-	maxBuckets := utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
-		r := utils.Map(d.Views, view.GetReceivedR)
-		return utils.MaxOver(r) - utils.MinOver(r) + 1
-	}))
-	expectedValues.NumBuckets = utils.Filter(utils.Map(utils.NewIntArray(1, 5), func(i int) int {
-		return maxBuckets / (5 - i)
-	}), func(i int) bool {
-		return i > 5
-	})
+
+	expectedValues.NumBuckets = utils.RemoveDuplicates(expectedValues.NumBuckets)
 	utils.SortOrdered(expectedValues.NumBuckets)
+
 	slog.Info("Got values of NumBuckets", "NumBuckets", expectedValues.NumBuckets)
 
 	slog.Info("All data collected")
@@ -152,7 +146,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-var init_ bool
+//var init_ bool
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {
 	p := interfaces.Params{
@@ -166,10 +160,10 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	numRuns := getIntQueryParam(r, "NumRuns")
 	numBuckets := getIntQueryParam(r, "NumBuckets")
 
-	if !init_ {
-		init_ = true
-		numBuckets = 10
-	}
+	//if !init_ {
+	//	init_ = true
+	//	numBuckets = 10
+	//}
 
 	slog.Info("Querying data", "Params", p, "NumRuns", numRuns, "NumBuckets", numBuckets)
 

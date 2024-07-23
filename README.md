@@ -1,12 +1,5 @@
 # Evaluating Privacy of the $\Pi_t$ Protocol :tulip:
 
-## TODO
-- Update role of &epsilon; based on interpretations from [On the `Semantics' of Differential Privacy: A Bayesian Formulation](https://arxiv.org/abs/0803.3946)
-  -  $e^{\epsilon}$ <s> should bound the ratio of areas under the cumulative distribution curves for number of onions received by clients $C_{R}$ and $C_{R-1}$ </s> . However this doesn't take into account the information leaked by the routing itself
-  - Instead, compute the likelihood of being in Scenario 0 or Scenario 1 based on the observations (who is sending to whom,
-    the number of onions received, and the routing information).
-  - Need to clarify what exactly are the observables. 
-  - The ratio should be bounded by $e^{\epsilon}$. (likely logorithmic)
 
 ## Introduction
 
@@ -18,7 +11,6 @@ For an implementation of $`\Pi_t`$, see [github.com/HannahMarsh/pi_t-experiment]
 
 &nbsp;
 
-TODO: update this figure to remove "Mixer" and "Gatekeeper" roles
 
 <figure>
   <figcaption><b>Figure 1</b> - <em>Routing Path Visualization, Example "Scenario 0" (with N clients, R Relays, l1 mixers, and l rounds)</em></figcaption>
@@ -45,14 +37,12 @@ $$
 \Pr[\text{View}^{\mathcal{A}}(\sigma_0) \in \mathcal{V}] \leq e^{\epsilon} \cdot \Pr[\text{View}^{\mathcal{A}}(\sigma_1) \in \mathcal{V}] + \delta
 $$
 
-TODO Add back PRF for checkpoint onions
-
 
 ## Parameters
-- NumRuns $= R \cdot N $
-- $R$: Number of clients. 
-- $N$: Number of relays
-- $L$: Path length, i.e. number of rounds
+- NumRuns: Number of trials
+- $r$: Number of clients. 
+- $n$: Number of relays
+- $l$: Path length, i.e. number of rounds
 - $\chi$: The fraction of corrupted nodes
 - $x$: Server load (number of onions processed per node per round)
 - &epsilon;: Determines bound ($e^{\epsilon}$) for multiplicative difference
@@ -89,11 +79,6 @@ The adversary observes the network volume (number of onions each client and node
 <s> Each round, the adversary updates the
 probability distribution of where the message-bearing onion is likely located. The adversary's goal is to determine the most probable client $\[C_2...C_N\]$
 that received a message-bearing onion from $C_1$. </s>
-
-### _Bad_ and _Good_ Events
-
-- A "Bad event" is defined as when either $O_{R-1}$ or $O_{R}$ are "far away" from their expected values.
-- Conversely, a "Good event" is when both are "close" to their expected values.
 
 ### Computing the Adversary's Advantage
 
@@ -146,7 +131,7 @@ go run cmd/main.go
 ### Running the simulation for fixed paramater values (given as command argument flags)
 
 ```bash  
-go run cmd/run/main.go -id=1
+go run cmd/run/main.go -serverLoad 2 -n 100 -r 100 -l 10 -r 10 -X 1.0 -numRuns 1000 
 ```  
 
 ### Running the data visualization server
