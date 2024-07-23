@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -15,48 +16,20 @@ import (
 	"image/color"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 )
 
-type AllData struct {
-	Data []Data `json:"Data"`
-}
+var allData view.AllData
+var expectedValues view.ExpectedValues
+var defaults interfaces.Params
 
-type Data struct {
-	Params interfaces.Params `json:"Params"`
-	Views  []View            `json:"Views"`
-}
-
-type View struct {
-	Probabilities []float64 `json:"Probabilities"`
-	ReceivedR     int       `json:"ReceivedR"`
-	ReceivedR_1   int       `json:"ReceivedR_1"`
-}
-
-func getReceivedR(v View) int {
-	return v.ReceivedR
-}
-func getReceivedR_1(v View) int {
-	return v.ReceivedR_1
-}
-
-var allData AllData
-var expectedValues ExpectedValues
-
-// Define your data structure
-type ExpectedValues struct {
-	N          []int     `json:"N"`
-	R          []int     `json:"R"`
-	ServerLoad []int     `json:"ServerLoad"`
-	L          []int     `json:"L"`
-	X          []float64 `json:"X"`
-	Scenario   []int     `json:"Scenario"`
-	NumRuns    []int     `json:"NumRuns"`
-	NumBuckets []int     `json:"NumBuckets"`
-}
+var firstColor = color.RGBA{R: 173, G: 202, B: 237, A: 255}
+var secondColor = color.RGBA{R: 217, G: 156, B: 201, A: 255}
+var overlap = color.RGBA{R: 143, G: 106, B: 176, A: 255}
 
 func main() {
 
@@ -102,40 +75,46 @@ func main() {
 	}
 
 	slog.Info("Getting values of N...")
-	expectedValues.N = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+	expectedValues.N = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
 		return d.Params.N
 	}))
 	utils.SortOrdered(expectedValues.N)
+	defaults.N = expectedValues.N[0]
 	slog.Info("Got values of N", "N", expectedValues.N)
-	expectedValues.R = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+	expectedValues.R = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
 		return d.Params.R
 	}))
 	utils.SortOrdered(expectedValues.R)
+	defaults.R = expectedValues.R[0]
 	slog.Info("Geot values of R", "R", expectedValues.R)
-	expectedValues.ServerLoad = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+	expectedValues.ServerLoad = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
 		return int(d.Params.ServerLoad)
 	}))
 	utils.SortOrdered(expectedValues.ServerLoad)
+	defaults.ServerLoad = expectedValues.ServerLoad[0]
 	slog.Info("Got values of ServerLoad", "ServerLoad", expectedValues.ServerLoad)
-	expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) int {
+	expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
 		return d.Params.L
 	}))
 	utils.SortOrdered(expectedValues.L)
+	defaults.L = expectedValues.L[0]
 	slog.Info("Got values of L", "L", expectedValues.L)
-	expectedValues.X = utils.RemoveDuplicates(utils.Map(allData.Data, func(d Data) float64 {
+	expectedValues.X = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) float64 {
 		return d.Params.X
 	}))
 	utils.SortOrdered(expectedValues.X)
+	defaults.X = expectedValues.X[0]
 	slog.Info("Got values of X", "X", expectedValues.X)
 
 	slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
-	expectedValues.NumRuns = utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d Data) int {
+	expectedValues.NumRuns = utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
 		return len(d.Views)
 	}))+1)
+	defaults.Scenario = expectedValues.Scenario[0]
 	utils.SortOrdered(expectedValues.NumRuns)
 	slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
-	maxBuckets := utils.MaxOver(utils.Map(allData.Data, func(d Data) int {
-		r := utils.Map(d.Views, getReceivedR)
+	maxBuckets := utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
+		r := utils.Map(d.Views, view.GetReceivedR)
 		return utils.MaxOver(r) - utils.MinOver(r) + 1
 	}))
 	expectedValues.NumBuckets = utils.Filter(utils.Map(utils.NewIntArray(1, 5), func(i int) int {
@@ -173,6 +152,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+var init_ bool
+
 func queryHandler(w http.ResponseWriter, r *http.Request) {
 	p := interfaces.Params{
 		N:          getIntQueryParam(r, "N"),
@@ -185,23 +166,46 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	numRuns := getIntQueryParam(r, "NumRuns")
 	numBuckets := getIntQueryParam(r, "NumBuckets")
 
+	if !init_ {
+		init_ = true
+		numBuckets = 10
+	}
+
 	slog.Info("Querying data", "Params", p, "NumRuns", numRuns, "NumBuckets", numBuckets)
 
 	if numBuckets <= 0 {
-		numBuckets = 20
+		numBuckets = 15
 	}
 
-	v := utils.Find(allData.Data, func(data Data) bool {
+	v0 := utils.Find(allData.Data, func(data view.Data) bool {
 		a := data.Params
 		b := p
-		return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == b.Scenario
+		return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 0
 	})
 
-	if v == nil {
-		v = &(allData.Data[0])
+	if v0 == nil {
+		v0 = utils.Find(allData.Data, func(data view.Data) bool {
+			a := data.Params
+			b := defaults
+			return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 0
+		})
 	}
 
-	images, err := plotView(v.Views[:utils.Max(1, utils.Min(len(v.Views), numRuns))], numBuckets)
+	v1 := utils.Find(allData.Data, func(data view.Data) bool {
+		a := data.Params
+		b := p
+		return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 1
+	})
+
+	if v1 == nil {
+		v1 = utils.Find(allData.Data, func(data view.Data) bool {
+			a := data.Params
+			b := defaults
+			return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 1
+		})
+	}
+
+	images, err := plotView(v0.Views[:utils.Max(1, utils.Min(len(v0.Views), numRuns))], v1.Views[:utils.Max(1, utils.Min(len(v0.Views), numRuns))], numBuckets)
 	if err != nil {
 		slog.Error("failed to plot view", err)
 		http.Error(w, "Failed to plot view", http.StatusInternalServerError)
@@ -241,14 +245,18 @@ type Images struct {
 	Probabilities string `json:"probabilities_img"`
 	ReceivedR     string `json:"receivedR_1_img"`
 	ReceivedR_1   string `json:"receivedR_img"`
-	Top10         string `json:"top10"`
+	ProbScen0     string `json:"probScen0_img"`
+	ProbScen1     string `json:"probScen1_img"`
 }
 
-func plotView(view []View, numBuckets int) (Images, error) {
-	if len(view) == 0 {
+func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
+	if len(v0) == 0 || len(v1) == 0 {
 		return Images{}, pl.NewError("no views to plot")
 	}
-	probabilities := computeAverages(utils.Map(view, func(v View) []float64 {
+	probabilities0 := computeAverages(utils.Map(v0, func(v view.View) []float64 {
+		return v.Probabilities
+	}))
+	probabilities1 := computeAverages(utils.Map(v1, func(v view.View) []float64 {
 		return v.Probabilities
 	}))
 
@@ -276,27 +284,41 @@ func plotView(view []View, numBuckets int) (Images, error) {
 	//	return Images{}, pl.WrapError(err, "failed to create directory")
 	//}
 
-	prImage, top10, err := createPlot("Probabilities", probabilities)
+	prImage, err := createPlot("Probabilities", probabilities0, probabilities1)
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create plot")
 	}
 
-	cdfN, shiftN := computeCDF(utils.Map(view, getReceivedR), numBuckets)
-	cdfN_1, shiftN_1 := computeCDF(utils.Map(view, getReceivedR_1), numBuckets)
-	prReceivedR, err := createCDFPlot("ReceivedR", cdfN, shiftN, "Client R", "Number of onions received", "CDF")
+	//cdfN, shiftN := computeCDF(utils.Map(v0, view.GetReceivedR), utils.Map(v1, view.GetReceivedR), numBuckets)
+	//cdfN_1, shiftN_1 := computeCDF(utils.Map(v0, view.GetReceivedR_1), utils.Map(v1, view.GetReceivedR_1), numBuckets)
+
+	//prReceivedR, err := createCDFPlot("ReceivedR", cdfN, float64(shiftN), "Client R", "Number of onions received", "CDF")
+	//if err != nil {
+	//	return Images{}, pl.WrapError(err, "failed to create CDF plot")
+	//}
+	//prReceivedR_1, err := createCDFPlot("ReceivedR_1", cdfN_1, float64(shiftN_1), "Client R-1", "Number of onions received", "CDF")
+	//if err != nil {
+	//	return Images{}, pl.WrapError(err, "failed to create CDF plot")
+	//}
+
+	cdfProb0, shift0 := computeFloatCDF(utils.Map(v0, view.GetProbScen0), utils.Map(v1, view.GetProbScen0), numBuckets)
+	cdfProb1, shift1 := computeFloatCDF(utils.Map(v0, view.GetProbScen1), utils.Map(v1, view.GetProbScen1), numBuckets)
+
+	prProb0, err := createFloatCDFPlot("Prob0", cdfProb0, shift0, "Probabilities of Being in Scenario 0", "Probability", "CDF")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
-	prReceivedR_1, err := createCDFPlot("ReceivedR_1", cdfN_1, shiftN_1, "Client R-1", "Number of onions received", "CDF")
+	prProb1, err := createFloatCDFPlot("Prob1", cdfProb1, shift1, "Probabilities of Being in Scenario 1", "Probability", "CDF")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
 
 	return Images{
 		Probabilities: prImage,
-		ReceivedR:     prReceivedR,
-		ReceivedR_1:   prReceivedR_1,
-		Top10:         top10,
+		//ReceivedR:     prReceivedR,
+		//ReceivedR_1:   prReceivedR_1,
+		ProbScen0: prProb0,
+		ProbScen1: prProb1,
 	}, nil
 }
 
@@ -317,53 +339,141 @@ func computeAverages(data [][]float64) []float64 {
 	return averages
 }
 
-func computeCDF(data []int, numBuckets int) ([]float64, int) {
+//func computeCDF(data0, data1 []int, numBuckets int) ([]float64, []float64, int) {
+//	// Compute frequencies
+//	//freq := make(map[float64]int)
+//	xMin := utils.Min(utils.MinOver(data1), utils.MinOver(data0))
+//	xMax := utils.Max(utils.MaxOver(data1), utils.MaxOver(data0))
+//	freq := make([]int, xMax-xMin+1)
+//	for i := range freq {
+//		freq[i] = 0
+//	}
+//	for _, value := range data0 {
+//		freq[value-xMin] = freq[value-xMin] + 1
+//	}
+//	cumulativeSum := len(freq) - utils.Count(freq, 0)
+//
+//	cdf := make([]float64, 0)
+//
+//	bucketSize := utils.Max(1, (xMax-xMin)/utils.Max(numBuckets, 5))
+//	for i := 0; i < len(freq); i += bucketSize {
+//		count := 0
+//		for j := i; j < utils.Min(len(freq), i+bucketSize); j++ {
+//			count += freq[j]
+//		}
+//		cdf = append(cdf, float64(count)/float64(cumulativeSum))
+//	}
+//	return cdf, xMin
+//}
+
+type range_ struct {
+	min, max float64
+	count0   int
+	count1   int
+	interval int
+	width    float64
+}
+
+func newRange(min, max float64, interval int, width float64) *range_ {
+	return &range_{min: min, max: max, interval: interval, width: width}
+}
+
+func (r range_) contains(value float64) bool {
+	return r.min <= value && value <= r.max
+}
+
+func (r *range_) add0() {
+	r.count0++
+}
+func (r *range_) add1() {
+	r.count1++
+}
+
+type pair struct {
+	key      float64
+	value0   float64
+	value1   float64
+	interval float64
+}
+
+func computeFloatCDF(data0, data1 []float64, numBuckets int) ([]pair, float64) {
 	// Compute frequencies
 	//freq := make(map[float64]int)
-	xMin := utils.MinOver(data)
-	xMax := utils.MaxOver(data)
-	freq := make([]int, xMax-xMin+1)
+	numBuckets = utils.Max(numBuckets, 5)
+	xMin := utils.Min(utils.MinOver(data1), utils.MinOver(data0))
+	xMax := utils.Max(utils.MaxOver(data1), utils.MaxOver(data0))
+	interval := (xMax - xMin) / float64(numBuckets)
+	freq := make([]*range_, numBuckets)
+	totalCount0 := 0
+	totalCount1 := 0
 	for i := range freq {
-		freq[i] = 0
+		freq[i] = newRange(xMin+(float64(i)*interval), xMin+(float64(i+1)*interval), i, interval)
 	}
-	for _, value := range data {
-		freq[value-xMin] = freq[value-xMin] + 1
-	}
-	cumulativeSum := len(freq) - utils.Count(freq, 0)
-
-	cdf := make([]float64, 0)
-
-	bucketSize := utils.Max(1, (xMax-xMin)/utils.Max(numBuckets, 5))
-	for i := 0; i < len(freq); i += bucketSize {
-		count := 0
-		for j := i; j < utils.Min(len(freq), i+bucketSize); j++ {
-			count += freq[j]
+	for _, value := range data0 {
+		if r := utils.FindPointer(freq, func(r *range_) bool {
+			return r.contains(value)
+		}); r != nil {
+			r.add0()
+			totalCount0++
 		}
-		cdf = append(cdf, float64(count)/float64(cumulativeSum))
 	}
+	for _, value := range data1 {
+		if r := utils.FindPointer(freq, func(r *range_) bool {
+			return r.contains(value)
+		}); r != nil {
+			r.add1()
+			totalCount1++
+		}
+	}
+	//numValues := len(freq) - utils.CountAny(freq, func(r *range_) bool {
+	//	return r.count == 0
+	//})
+
+	cdf := make([]pair, 0)
+
+	for _, r := range freq {
+		cdf = append(cdf, pair{
+			key:      r.min,
+			value0:   float64(r.count0) / float64(totalCount0),
+			value1:   float64(r.count1) / float64(totalCount1),
+			interval: r.width,
+		})
+	}
+
 	return cdf, xMin
 }
 
-func createPlot(file string, probabilities []float64) (string, string, error) {
+func createPlot(file string, probabilities0, probabilities1 []float64) (string, error) {
 
 	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
 
 	type temp struct {
-		value float64
-		label string
+		value0  float64
+		value1  float64
+		overlap float64
+		label   string
 	}
 
-	t := make([]temp, len(probabilities))
-	for i := range probabilities {
-		t[i] = temp{value: probabilities[i], label: fmt.Sprintf("%d", i+1)}
+	t := make([]temp, len(probabilities0))
+
+	for i := range probabilities0 {
+		t[i] = temp{value0: probabilities0[i], value1: probabilities1[i], overlap: math.Min(probabilities0[i], probabilities1[i]), label: fmt.Sprintf("%d", i+1)}
 	}
 
-	utils.Sort(t, func(i, j temp) bool {
-		return i.value > j.value
+	//utils.Sort(t, func(i, j temp) bool {
+	//	return i.value0 > j.value0
+	//})
+
+	probabilities0 = utils.Map(t, func(i temp) float64 {
+		return i.value0
 	})
 
-	probabilities = utils.Map(t, func(i temp) float64 {
-		return i.value
+	probabilities1 = utils.Map(t, func(i temp) float64 {
+		return i.value1
+	})
+
+	overlap_ := utils.Map(t, func(i temp) float64 {
+		return i.overlap
 	})
 
 	// Create a new plot
@@ -377,35 +487,54 @@ func createPlot(file string, probabilities []float64) (string, string, error) {
 
 	// Calculate bar width based on the number of points
 	plotWidth := 16 * vg.Inch
-	barWidth := plotWidth / vg.Length(len(probabilities)*2)
+	barWidth := plotWidth / vg.Length(int(float64(len(probabilities0))*float64(1.2)))
 
 	// Create a bar chart
 	//w := vg.Points(20) // Width of the bars
-	bars, err := plotter.NewBarChart(plotter.Values(probabilities), barWidth)
+	bars0, err := plotter.NewBarChart(plotter.Values(probabilities0), barWidth)
 	if err != nil {
-		return "", "", pl.WrapError(err, "failed to create bar chart")
+		return "", pl.WrapError(err, "failed to create bar chart")
 	}
-	bars.LineStyle.Width = vg.Length(0)                                  // No line around bars
-	bars.Color = color.Color(color.RGBA{R: 145, G: 112, B: 222, A: 250}) // Set the color of the bars
+	bars0.LineStyle.Width = vg.Length(0)  // No line around bars
+	bars0.Color = color.Color(firstColor) // Set the color of the bars
 
-	p.Add(bars)
+	p.Add(bars0)
+
+	bars1, err := plotter.NewBarChart(plotter.Values(probabilities1), barWidth)
+	if err != nil {
+		return "", pl.WrapError(err, "failed to create bar chart")
+	}
+	bars1.LineStyle.Width = vg.Length(0)   // No line around bars
+	bars1.Color = color.Color(secondColor) // Set the color of the bars
+
+	p.Add(bars1)
+
+	// Create a bar chart for overlap
+	overlapBars, err := plotter.NewBarChart(plotter.Values(overlap_), barWidth)
+	if err != nil {
+		return "", pl.WrapError(err, "failed to create overlap bar chart")
+	}
+	overlapBars.LineStyle.Width = vg.Length(0) // No line around bars
+	overlapBars.Color = color.Color(overlap)   // Blue overlap
+
+	p.Add(overlapBars)
+
+	// Create a legend
+	p.Legend.Add("Scenario 0", bars0)
+	p.Legend.Add("Scenario 1", bars1)
+	p.Legend.Top = true // Position the legend at the top
+
 	p.NominalX(nodeIDs...) // Set node IDs as labels on the X-axis
-
-	// Display top 10 most likely elements
-	top10 := "Top 10 Most Likely Receivers:\n"
-	for i := 0; i < 10 && i < len(t); i++ {
-		top10 += fmt.Sprintf(", %s", t[i].label)
-	}
 
 	// Save the plot to a PNG file
 	if err := p.Save(16*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
 		log.Panic(err)
 	}
 
-	return newName, top10, nil
+	return newName, nil
 }
 
-func createCDFPlot(file string, probabilities []float64, xMin int, title, xLabel, yLabel string) (string, error) {
+func createCDFPlot(file string, probabilities []float64, xMin float64, title, xLabel, yLabel string) (string, error) {
 	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
 	// Create a new plot
 	p := plot.New()
@@ -415,7 +544,7 @@ func createCDFPlot(file string, probabilities []float64, xMin int, title, xLabel
 
 	xLabels := make([]string, len(probabilities))
 	for i := range xLabels {
-		xLabels[i] = fmt.Sprintf("%d", (i + xMin))
+		xLabels[i] = fmt.Sprintf("%2.f", float64(i)+xMin)
 	}
 
 	// Calculate bar width based on the number of points
@@ -432,6 +561,114 @@ func createCDFPlot(file string, probabilities []float64, xMin int, title, xLabel
 	bars.Color = color.Color(color.RGBA{R: 145, G: 112, B: 222, A: 250}) // Set the color of the bars
 
 	p.Add(bars)
+	p.NominalX(xLabels...) // Set node IDs as labels on the X-axis
+
+	// Save the plot to a PNG file
+	if err := p.Save(8*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
+		log.Panic(err)
+	}
+	return newName, nil
+}
+
+func createFloatCDFPlot(file string, probabilities []pair, xMin float64, title, xLabel, yLabel string) (string, error) {
+	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
+	// Create a new plot
+	p := plot.New()
+	p.Title.Text = title
+	p.Y.Label.Text = yLabel
+	p.X.Label.Text = xLabel
+
+	keys := utils.Map(probabilities, func(p pair) float64 {
+		return p.key
+	})
+	utils.SortOrdered(keys)
+
+	xLabels := make([]string, len(keys))
+	values0 := make([]float64, len(keys))
+	values1 := make([]float64, len(keys))
+	overlapValues := make([]float64, len(keys))
+	ratios := make([]float64, len(keys))
+
+	totalArea0 := 0.0
+	totalArea1 := 0.0
+	totalOverlapArea := 0.0
+	yMax := 0.0
+
+	for i, label := range keys {
+		xLabels[i] = fmt.Sprintf("%.2f", label)
+		values := utils.Find(probabilities, func(p pair) bool {
+			return p.key == label
+		})
+		values0[i] = values.value0
+		values1[i] = values.value1
+		overlapValues[i] = math.Min(values.value0, values.value1) // Calculate overlap
+
+		area0 := values0[i] * values.interval
+		area1 := values1[i] * values.interval
+
+		ratios[i] = math.Min(area0, area1) / math.Max(area0, area1)
+
+		if math.Max(area0, area1) == 0 {
+			ratios[i] = 1
+		}
+
+		totalOverlapArea += overlapValues[i] * values.interval
+		totalArea0 += area0
+		totalArea1 += area1
+
+		yMax = utils.Max(yMax, utils.Max(values0[i], values1[i]))
+	}
+
+	averageRatio := utils.Sum(ratios) / float64(len(ratios))
+
+	// Calculate bar width based on the number of points
+	plotWidth := 8 * vg.Inch
+	barWidth := plotWidth / vg.Length(int(float64(len(probabilities))*float64(1.2)))
+
+	// Create a bar chart
+	//w := vg.Points(20) // Width of the bars
+
+	bars0, err := plotter.NewBarChart(plotter.Values(values0), barWidth)
+	if err != nil {
+		return "", pl.WrapError(err, "failed to create bar chart")
+	}
+	bars0.LineStyle.Width = vg.Length(0)  // No line around bars
+	bars0.Color = color.Color(firstColor) // Set the color of the bars
+
+	p.Add(bars0)
+
+	bars1, err := plotter.NewBarChart(plotter.Values(values1), barWidth)
+	if err != nil {
+		return "", pl.WrapError(err, "failed to create bar chart")
+	}
+	bars1.LineStyle.Width = vg.Length(0)   // No line around bars
+	bars1.Color = color.Color(secondColor) // Set the color of the bars
+
+	p.Add(bars1)
+
+	// Create a bar chart for overlap
+	overlapBars, err := plotter.NewBarChart(plotter.Values(overlapValues), barWidth)
+	if err != nil {
+		return "", pl.WrapError(err, "failed to create overlap bar chart")
+	}
+	overlapBars.LineStyle.Width = vg.Length(0) // No line around bars
+	overlapBars.Color = color.Color(overlap)   // Blue overlap
+
+	p.Add(overlapBars)
+
+	// Create a legend
+	p.Legend.Add(fmt.Sprintf("Scenario 0 (total area = %.6f)", totalArea0), bars0)
+	p.Legend.Add(fmt.Sprintf("Scenario 1 (total area = %.6f)", totalArea1), bars1)
+	p.Legend.Add(fmt.Sprintf("Overlap (total area = %.6f)", totalOverlapArea), overlapBars)
+	p.Legend.Top = true // Position the legend at the top
+
+	// Add text annotation
+	notes, _ := plotter.NewLabels(plotter.XYLabels{
+		XYs:    []plotter.XY{{X: 1, Y: yMax * 1.1}}, // Position of the note
+		Labels: []string{fmt.Sprintf("Ratio: %.6f", averageRatio)},
+	})
+	p.Add(notes)
+
 	p.NominalX(xLabels...) // Set node IDs as labels on the X-axis
 
 	// Save the plot to a PNG file

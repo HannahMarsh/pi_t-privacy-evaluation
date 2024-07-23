@@ -304,8 +304,12 @@ func CompareArrays[T comparable](a, b []T) (bool, int) {
 	return true, -1
 }
 
-func Sum(values []int) int {
-	sum := 0
+type Number interface {
+	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64 | complex64 | complex128
+}
+
+func Sum[T Number](values []T) T {
+	var sum T
 	for _, v := range values {
 		sum += v
 	}
@@ -415,6 +419,15 @@ func Find[T any](items []T, f func(T) bool) *T {
 	for _, item := range items {
 		if f(item) {
 			return &item
+		}
+	}
+	return nil
+}
+
+func FindPointer[T any](items []*T, f func(*T) bool) *T {
+	for _, item := range items {
+		if f(item) {
+			return item
 		}
 	}
 	return nil
@@ -664,6 +677,16 @@ func Count[T comparable](items []T, value T) int {
 	count := 0
 	for _, item := range items {
 		if item == value {
+			count++
+		}
+	}
+	return count
+}
+
+func CountAny[T any](items []T, f func(T) bool) int {
+	count := 0
+	for _, item := range items {
+		if f(item) {
 			count++
 		}
 	}

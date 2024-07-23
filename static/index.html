@@ -38,8 +38,10 @@
         img.probabilities {
             width: 1200px;
         }
-        #top10 {
-            text-align: center;
+        .description {
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.57);
+            font-style: italic;
         }
     </style>
     <script>
@@ -66,11 +68,7 @@
                 const data = await response.json();
                 for (const [key, value] of Object.entries(data)) {
                     console.log(key, value);
-                    if (key === "top10") {
-                        document.getElementById("top10").textContent = value;
-                    } else {
-                        updateImageSrc(key, value);
-                    }
+                    updateImageSrc(key, value);
                 }
                 // document.getElementById("results").textContent = data;
                 // updateImageSrc("receivedR_1_img", "/plots/receivedR_1.png");
@@ -170,7 +168,8 @@
             <table class="params">
                 <tr>
                     <td class="param-label">
-                        <label for="N">N:</label>
+                        <label for="N">n:</label><br>
+                        <span class="description">(number of nodes)</span>
                     </td>
                     <td>
                         <input type="range" id="N" list="N-values" />
@@ -182,7 +181,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="R">R:</label>
+                        <label for="R">r:</label><br>
+                        <span class="description">(number of clients)</span>
                     </td>
                     <td>
                         <input type="range" id="R" list="R-values" />
@@ -194,7 +194,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="ServerLoad">ServerLoad:</label>
+                        <label for="ServerLoad">N / n:</label><br>
+                        <span class="description">(server load: number of onions processed <br>per node per round)</span>
                     </td>
                     <td>
                         <input type="range" id="ServerLoad" list="ServerLoad-values" />
@@ -206,7 +207,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="L">L:</label>
+                        <label for="L">L:</label><br>
+                        <span class="description">(number of rounds)</span>
                     </td>
                     <td>
                         <input type="range" id="L" list="L-values" />
@@ -218,7 +220,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="X">X:</label>
+                        <label for="X">&chi;:</label><br>
+                        <span class="description">(fraction of corrupted nodes)</span>
                     </td>
                     <td>
                         <input type="range" id="X" list="X-values" step="0.01" />
@@ -242,7 +245,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="Scenario">Scenario:</label>
+                        <label for="Scenario">Scenario:</label><br>
+                        <span class="description">(filter the scenario (1 or 2))</span>
                     </td>
                     <td>
                         <input type="range" id="Scenario" list="Scenario-values" />
@@ -254,7 +258,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="NumRuns">NumRuns:</label>
+                        <label for="NumRuns">NumRuns:</label><br>
+                        <span class="description">(number of runs)</span>
                     </td>
                     <td>
                         <input type="range" id="NumRuns" list="NumRuns-values" />
@@ -266,7 +271,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="NumBuckets">NumBuckets:</label>
+                        <label for="NumBuckets">NumBuckets:</label><br>
+                        <span class="description">(number of buckets)</span>
                     </td>
                     <td>
                         <input type="range" id="NumBuckets" list="NumBuckets-values" />
@@ -280,6 +286,15 @@
         </td>
         <td>
             <table>
+
+                <tr>
+                    <td>
+                        <img id="probScen0_img" src="/plots/probScen0.png" alt=""/>
+                    </td>
+                    <td>
+                        <img id="probScen1_img" src="/plots/probScen1.png" alt=""/>
+                    </td>
+                </tr>
                 <tr>
                     <td>
                         <img id="receivedR_1_img" src="/plots/receivedR_1.png" alt=""/>
@@ -292,11 +307,10 @@
                     <td colspan="2">
 
                         <img id="probabilities_img" class="probabilities" src="/plots/probabilities.png" alt=""/>
-                        <div id="top10">
-                            Top10 probabilities
-                        </div>
+                        <br>
                     </td>
                 </tr>
+
             </table>
         </td>
     </tr>

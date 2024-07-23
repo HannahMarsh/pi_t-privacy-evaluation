@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/model/client"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/model/node"
@@ -15,21 +16,6 @@ import (
 	"io/ioutil"
 	"os"
 )
-
-type View struct {
-	Probabilities []float64 `json:"Probabilities"`
-	ReceivedR     int       `json:"ReceivedR"`
-	ReceivedR_1   int       `json:"ReceivedR_1"`
-}
-
-type AllData struct {
-	Data []Data `json:"Data"`
-}
-
-type Data struct {
-	Params interfaces.Params `json:"Params"`
-	Views  []View            `json:"Views"`
-}
 
 //var multiRuns map[interfaces.Params][]MultiView
 
@@ -72,7 +58,7 @@ func main() {
 		X:          *X,
 		Scenario:   *Scenario,
 	}
-	runs := make([]View, *numRuns)
+	runs := make([]view.View, *numRuns)
 
 	cn := utils.RandomSubset(utils.NewIntArray(p.R+1, p.R+p.N+1), int(p.X*float64(p.N)))
 	isNodeCorrupted := utils.Map(utils.NewIntArray(p.R+1, p.R+p.N+1), func(id int) bool {
@@ -111,11 +97,20 @@ func main() {
 		probabilities := newSystem.GetProbabilities(2)
 		receivedR := newSystem.GetNumOnionsReceived(p.R)
 		receivedR_1 := newSystem.GetNumOnionsReceived(p.R - 1)
+		//probScen0 := probabilities[p.R-1]
+		//probScen1 := probabilities[p.R]
+		//
+		//if probScen0+probScen1 == 0 {
+		//	probScen0 = 0.5
+		//	probScen1 = 0.5
+		//}
 
-		runs[i] = View{
+		runs[i] = view.View{
 			Probabilities: probabilities[:p.R+1],
 			ReceivedR:     receivedR,
 			ReceivedR_1:   receivedR_1,
+			//ProbScen0:     probScen0 / (probScen1 + probScen0), // normalise
+			//ProbScen1:     probScen1 / (probScen1 + probScen0), // normalise
 		}
 	}
 
@@ -127,12 +122,12 @@ func main() {
 		return
 	}
 
-	var allData AllData
+	var allData view.AllData
 
 	// Unmarshal the JSON content into a struct
 	if err := json.Unmarshal(fileContent, &allData); err != nil {
 		//slog.Error("failed to unmarshal JSON", err)
-		allData.Data = make([]Data, 0)
+		allData.Data = make([]view.Data, 0)
 	}
 
 	//	slog.Info("All data collected")
@@ -147,7 +142,7 @@ func main() {
 
 	if !didAppend {
 
-		allData.Data = append(allData.Data, Data{
+		allData.Data = append(allData.Data, view.Data{
 			Params: p,
 			Views:  runs,
 		})
