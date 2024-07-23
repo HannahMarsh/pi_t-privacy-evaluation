@@ -123,15 +123,22 @@ func main() {
 
 	// Start HTTP server
 	// Serve static files from the "static" directory
-	http.Handle("/", http.FileServer(http.Dir("static")))
-	http.Handle("/plots/", http.StripPrefix("/plots/", http.FileServer(http.Dir("static/plots"))))
-	http.HandleFunc("/query", queryHandler)
-	http.HandleFunc("/expected", handleExpectedValues)
+	http.Handle("/", withHeaders(http.FileServer(http.Dir("static"))))
+	http.Handle("/plots/", withHeaders(http.StripPrefix("/plots/", http.FileServer(http.Dir("static/plots")))))
+	http.Handle("/query", withHeaders(http.HandlerFunc(queryHandler)))
+	http.Handle("/expected", withHeaders(http.HandlerFunc(handleExpectedValues)))
 
 	slog.Info("Starting server on :8200")
 	if err := http.ListenAndServe(":8200", nil); err != nil {
 		slog.Error("failed to start server", err)
 	}
+}
+
+func withHeaders(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ngrok-skip-browser-warning", "true")
+		h.ServeHTTP(w, r)
+	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

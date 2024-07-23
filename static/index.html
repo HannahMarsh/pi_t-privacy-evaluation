@@ -45,7 +45,6 @@
         }
     </style>
     <script>
-
         function updateImageSrc(imageId, fileName) {
             const img = document.getElementById(imageId);
             img.src = fileName + '?t=' + new Date().getTime();
@@ -63,7 +62,7 @@
                 NumBuckets: getSliderValue("NumBuckets"),
             });
 
-            const response = await fetch(`http://localhost:8200/query?${params.toString()}`);
+            const response = await fetch(`/query?${params.toString()}`);
             if (response.ok) {
                 const data = await response.json();
                 for (const [key, value] of Object.entries(data)) {
@@ -80,7 +79,7 @@
         }
 
         async function populateSliders() {
-            const response = await fetch("http://localhost:8200/expected");
+            const response = await fetch("/expected");
             const expectedValues = await response.json();
 
             for (const [key, values] of Object.entries(expectedValues)) {
