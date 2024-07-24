@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
@@ -14,6 +13,7 @@ import (
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
 	"io/ioutil"
+	"log"
 	"os"
 )
 
@@ -29,6 +29,7 @@ func main() {
 	X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
 	Scenario := flag.Int("Scenario", 0, "Scenario")
 	numRuns := flag.Int("numRuns", 3, "Number of runs")
+	filePath := flag.String("filePath", "static/data.json", "File path")
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
 
@@ -113,18 +114,23 @@ func main() {
 		}
 	}
 
-	// Read the existing JSON file
-	filePath := "static/data.json"
-	fileContent, err := ioutil.ReadFile(filePath)
+	// Open the file with the appropriate flags
+	file, err := os.OpenFile(*filePath, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
-		return
+		log.Fatalf("Failed to open file: %s", err)
+	}
+	defer file.Close()
+
+	// Read the file contents
+	fileContent, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Failed to read file: %s", err)
 	}
 
 	var allData view.AllData
 
 	// Unmarshal the JSON content into a struct
-	if err := json.Unmarshal(fileContent, &allData); err != nil {
+	if err = json.Unmarshal(fileContent, &allData); err != nil {
 		//slog.Error("failed to unmarshal JSON", err)
 		allData.Data = make([]view.Data, 0)
 	}
@@ -155,7 +161,7 @@ func main() {
 	}
 
 	// Write the updated JSON back to the file
-	if err := ioutil.WriteFile(filePath, updatedJSON, 0644); err != nil {
+	if err := ioutil.WriteFile(*filePath, updatedJSON, 0666); err != nil {
 		slog.Error("failed to write file", err)
 		return
 	}

@@ -69,10 +69,6 @@
                     console.log(key, value);
                     updateImageSrc(key, value);
                 }
-                // document.getElementById("results").textContent = data;
-                // updateImageSrc("receivedR_1_img", "/plots/receivedR_1.png");
-                // updateImageSrc("receivedR_img", "/plots/receivedR.png");
-                // updateImageSrc("probabilities_img", "/plots/probabilities.png");
             } else {
                 document.getElementById("results").textContent = "No data found for the given parameters";
             }
@@ -107,8 +103,6 @@
                             slider.value = values.length - 1; // Set to the last value initially
                         } else if (key === "N" || key === "R" || key === "ServerLoad" || key === "L") {
                             slider.Value = Math.floor(((values.length - 1) * 0.75));
-                        } else if (key === "X") {
-                            slider.Value = values.length - 1;
                         } else {
                             slider.value = 0; // Set to the first value initially
                         }
@@ -225,19 +219,6 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="X">&chi;:</label><br>
-                        <span class="description">(fraction of corrupted nodes)</span>
-                    </td>
-                    <td>
-                        <input type="range" id="X" list="X-values" />
-                        <datalist id="X-values"></datalist>
-                    </td>
-                    <td class="param-value">
-                        <span id="X-value" class="slider-value"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="param-label">
                         <label for="NumRuns">NumRuns:</label><br>
                         <span class="description">(number of runs)</span>
                     </td>
@@ -266,26 +247,16 @@
         </td>
         <td>
             <table>
+                <tr>
+                    <td>
+                        <img id="probConfidence_img" src="/plots/probConfidence.png" alt=""/>
+                    </td>
+                    <td>
 
-                <tr>
-                    <td>
-                        <img id="probScen0_img" src="/plots/probScen0.png" alt=""/>
-                    </td>
-                    <td>
-                        <img id="probScen1_img" src="/plots/probScen1.png" alt=""/>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <img id="receivedR_1_img" src="/plots/receivedR_1.png" alt=""/>
-                    </td>
-                    <td>
-                        <img id="receivedR_img" src="/plots/receivedR.png" alt=""/>
                     </td>
                 </tr>
                 <tr>
                     <td colspan="2">
-
                         <img id="probabilities_img" class="probabilities" src="/plots/probabilities.png" alt=""/>
                         <br>
                     </td>

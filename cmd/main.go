@@ -13,11 +13,10 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 )
 
 var expectedValues view.ExpectedValues
-
-//var multiRuns map[interfaces.Params][]MultiView
 
 func main() {
 	// Define command-line flags
@@ -29,7 +28,7 @@ func main() {
 
 	// set GOMAXPROCS
 	if _, err := maxprocs.Set(); err != nil {
-		slog.Error("failed set max procs", err)
+		slog.Error("failed to set max procs", err)
 		os.Exit(1)
 	}
 
@@ -47,65 +46,158 @@ func main() {
 		return
 	}
 
-	from := 122
+	numTImes := 0
+	for _, N := range expectedValues.N {
+		for _, R := range expectedValues.R {
+			for _, D := range expectedValues.ServerLoad {
+				for _, L := range expectedValues.L {
+					if N <= R && L < N && D*N <= R*L { // number of onions each client sends out has to be less than path length
+						numTImes = numTImes + 2
+					}
+				}
+			}
+		}
+	}
+
+	slog.Info("", "num runs:", numTImes)
+
+	from := 0
 	index := 0
 
-	slog.Info("", "num runs:", len(expectedValues.N)*len(expectedValues.R)*len(expectedValues.ServerLoad)*len(expectedValues.L)*len(expectedValues.X)*len(expectedValues.Scenario)*len(expectedValues.NumRuns))
+	var wg sync.WaitGroup
+	var count int
+	var mu sync.Mutex
+
+	err2, allData := getData("static/data.json")
+	if err2 != nil {
+		slog.Error("failed to get data", err2)
+	}
 
 	for _, N := range expectedValues.N {
 		for _, R := range expectedValues.R {
 			for _, D := range expectedValues.ServerLoad {
 				for _, L := range expectedValues.L {
-					if L < N {
-						if D*N <= R*L { // number of onions each client sends out has to be less than path length
-							for _, X := range expectedValues.X {
-								for _, Scenario := range expectedValues.Scenario {
+					if N <= R && L < N && D*N <= R*L { // number of onions each client sends out has to be less than path length
+						for _, Scenario := range expectedValues.Scenario {
+							if index < from {
+								index++
+								fmt.Printf("%d, ", index)
+								if index%40 == 0 {
+									fmt.Println()
+								}
+								continue
+							}
+							index++
 
-									//if index > to {
-									//	return
-									//}
-									if index < from {
-										index++
-										fmt.Printf("%d, ", index)
-										if index%40 == 0 {
-											fmt.Println()
-										}
-										continue
-									}
-									index++
+							mu.Lock()
+							for count >= 12 {
+								mu.Unlock()
+								wg.Wait()
+								mu.Lock()
+							}
+							count++
+							if count == 12 {
+								wg.Add(1)
+							}
 
-									// Convert all the numeric parameters to strings
-									NStr := strconv.Itoa(N)
-									RStr := strconv.Itoa(R)
-									DStr := strconv.Itoa(D)
-									LStr := strconv.Itoa(L)
-									XStr := fmt.Sprintf("%f", X)
-									ScenarioStr := strconv.Itoa(Scenario)
-									numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
+							mu.Unlock()
 
-									// Create the command
-									cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr)
+							go func(n, r, d, l, s, i int) {
 
-									// Run the command and capture its output
-									output, err := cmd.CombinedOutput()
-									if err != nil {
-										fmt.Printf("Error running command: %v\n", err)
-										return
-									}
+								// Convert all the numeric parameters to strings
+								NStr := strconv.Itoa(n)
+								RStr := strconv.Itoa(r)
+								DStr := strconv.Itoa(d)
+								LStr := strconv.Itoa(l)
+								XStr := fmt.Sprintf("%f", 1.0)
+								ScenarioStr := strconv.Itoa(s)
+								numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
 
-									// Print the output
-									fmt.Printf("%s%d, ", output, index)
-									if index%40 == 0 {
-										fmt.Println()
+								dataFilePath := fmt.Sprintf("static/temp/%d_%d_%d_%d_%d_%d.json", n, r, d, l, i, s)
+
+								// Create the command
+								cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr, "-filePath", dataFilePath)
+
+								// Run the command and capture its output
+								output, err := cmd.CombinedOutput()
+								if err != nil {
+									fmt.Printf("Error running command: %v\n", err)
+									return
+								}
+
+								mu.Lock()
+
+								err2, newData := getData(dataFilePath)
+								if err2 != nil {
+									slog.Error("failed to get data", err2)
+								}
+
+								didAppend := false
+								for i := range allData.Data {
+									if allData.Data[i].Params == newData.Data[0].Params {
+										allData.Data[i].Views = append(allData.Data[i].Views, newData.Data[0].Views...)
+										didAppend = true
 									}
 								}
-							}
+
+								if !didAppend {
+									allData.Data = append(allData.Data, view.Data{
+										Params: newData.Data[0].Params,
+										Views:  newData.Data[0].Views,
+									})
+								}
+
+								err = os.Remove(dataFilePath)
+								if err != nil {
+									slog.Error("Failed to delete file: %s", err)
+								}
+
+								// Print the output
+								fmt.Printf("%s%d, ", output, i)
+								if i%40 == 0 {
+									fmt.Println()
+								}
+								count--
+								if count == 11 {
+									wg.Done()
+								}
+								mu.Unlock()
+							}(N, R, D, L, Scenario, index)
 						}
 					}
 				}
 			}
 		}
 	}
-	slog.Info("All data collected")
 
+	// Marshal the updated struct back into JSON
+	updatedJSON, err := json.MarshalIndent(allData, "", "  ")
+	if err != nil {
+		slog.Error("failed to marshal JSON", err)
+		return
+	}
+
+	// Write the updated JSON back to the file
+	if err = ioutil.WriteFile("static/data.json", updatedJSON, 0644); err != nil {
+		slog.Error("failed to write file", err)
+		return
+	}
+
+	slog.Info("All data collected")
+}
+
+func getData(dataFilePath string) (error, view.AllData) {
+	// Read the file contents
+	fc, err := ioutil.ReadFile(dataFilePath)
+	if err != nil {
+		return nil, view.AllData{}
+	}
+
+	var allData view.AllData
+
+	// Unmarshal the JSON content into a struct
+	if err = json.Unmarshal(fc, &allData); err != nil {
+		allData.Data = make([]view.Data, 0)
+	}
+	return nil, allData
 }
