@@ -47,7 +47,7 @@ func main() {
 		return
 	}
 
-	from := 0
+	from := 122
 	index := 0
 
 	slog.Info("", "num runs:", len(expectedValues.N)*len(expectedValues.R)*len(expectedValues.ServerLoad)*len(expectedValues.L)*len(expectedValues.X)*len(expectedValues.Scenario)*len(expectedValues.NumRuns))
@@ -57,7 +57,7 @@ func main() {
 			for _, D := range expectedValues.ServerLoad {
 				for _, L := range expectedValues.L {
 					if L < N {
-						if D*N <= R*L {
+						if D*N <= R*L { // number of onions each client sends out has to be less than path length
 							for _, X := range expectedValues.X {
 								for _, Scenario := range expectedValues.Scenario {
 

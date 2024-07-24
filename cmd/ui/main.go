@@ -107,9 +107,11 @@ func main() {
 	slog.Info("Got values of X", "X", expectedValues.X)
 
 	slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
-	expectedValues.NumRuns = utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
+	expectedValues.NumRuns = utils.Filter(utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
 		return len(d.Views)
-	}))+1)
+	}))+1), func(i int) bool {
+		return i%(10) == 0
+	})
 	defaults.Scenario = expectedValues.Scenario[0]
 	utils.SortOrdered(expectedValues.NumRuns)
 	slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
@@ -141,20 +143,6 @@ func withHeaders(h http.Handler) http.Handler {
 	})
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == "OPTIONS" {
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-//var init_ bool
-
 func queryHandler(w http.ResponseWriter, r *http.Request) {
 	p := interfaces.Params{
 		N:          getIntQueryParam(r, "N"),
@@ -167,56 +155,92 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	numRuns := getIntQueryParam(r, "NumRuns")
 	numBuckets := getIntQueryParam(r, "NumBuckets")
 
-	//if !init_ {
-	//	init_ = true
-	//	numBuckets = 10
-	//}
-
 	slog.Info("Querying data", "Params", p, "NumRuns", numRuns, "NumBuckets", numBuckets)
 
 	if numBuckets <= 0 {
 		numBuckets = 15
 	}
 
-	v0 := utils.Find(allData.Data, func(data view.Data) bool {
-		a := data.Params
-		b := p
-		return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 0
+	v := find(p)
+	v0 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
+		return data.Params.Scenario == 0
+	}), func(data view.Data) []view.View {
+		return data.Views
+	})
+	v1 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
+		return data.Params.Scenario == 1
+	}), func(data view.Data) []view.View {
+		return data.Views
 	})
 
-	if v0 == nil {
-		v0 = utils.Find(allData.Data, func(data view.Data) bool {
-			a := data.Params
-			b := defaults
-			return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 0
-		})
-	}
-
-	v1 := utils.Find(allData.Data, func(data view.Data) bool {
-		a := data.Params
-		b := p
-		return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 1
-	})
-
-	if v1 == nil {
-		v1 = utils.Find(allData.Data, func(data view.Data) bool {
-			a := data.Params
-			b := defaults
-			return a.N == b.N && a.R == b.R && a.ServerLoad == b.ServerLoad && a.L == b.L && a.X == b.X && a.Scenario == 1
-		})
-	}
-
-	images, err := plotView(v0.Views[:utils.Max(1, utils.Min(len(v0.Views), numRuns))], v1.Views[:utils.Max(1, utils.Min(len(v0.Views), numRuns))], numBuckets)
+	images, err := plotView(v0[:utils.Max(1, utils.Min(len(v0), numRuns))], v1[:utils.Max(1, utils.Min(len(v0), numRuns))], numBuckets)
 	if err != nil {
 		slog.Error("failed to plot view", err)
 		http.Error(w, "Failed to plot view", http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(images); err != nil {
+	if err = json.NewEncoder(w).Encode(images); err != nil {
 		slog.Error("failed to encode response", err)
 		http.Error(w, "Failed to encode data to JSON", http.StatusInternalServerError)
 	}
+}
+
+func find(p interfaces.Params) []view.Data {
+
+	v := allData.Data
+
+	if v1 := utils.Filter(v, func(data view.Data) bool {
+		return data.Params.N == p.N
+	}); len(v1) > 0 {
+		v = v1
+	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+		return data.Params.N == defaults.N
+	}); len(v1) > 0 {
+		v = v1
+	}
+
+	if v1 := utils.Filter(v, func(data view.Data) bool {
+		return data.Params.R == p.R
+	}); len(v1) > 0 {
+		v = v1
+	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+		return data.Params.R == defaults.R
+	}); len(v1) > 0 {
+		v = v1
+	}
+
+	if v1 := utils.Filter(v, func(data view.Data) bool {
+		return data.Params.L == p.L
+	}); len(v1) > 0 {
+		v = v1
+	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+		return data.Params.L == defaults.L
+	}); len(v1) > 0 {
+		v = v1
+	}
+
+	if v1 := utils.Filter(v, func(data view.Data) bool {
+		return data.Params.ServerLoad == p.ServerLoad
+	}); len(v1) > 0 {
+		v = v1
+	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+		return data.Params.ServerLoad == defaults.ServerLoad
+	}); len(v1) > 0 {
+		v = v1
+	}
+
+	if v1 := utils.Filter(v, func(data view.Data) bool {
+		return data.Params.X == p.X
+	}); len(v1) > 0 {
+		v = v1
+	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+		return data.Params.X == defaults.X
+	}); len(v1) > 0 {
+		v = v1
+	}
+
+	return v
 }
 
 func getIntQueryParam(r *http.Request, name string) int {
@@ -261,11 +285,6 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 		return v.Probabilities
 	}))
 
-	//// Remove the directory and its contents
-	//if err := os.RemoveAll("static/plots"); err != nil {
-	//	return Images{}, pl.WrapError(err, "failed to remove directory")
-	//}
-
 	// Read the contents of the directory
 	contents, err := ioutil.ReadDir("static/plots")
 	if err != nil {
@@ -280,27 +299,10 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 		}
 	}
 
-	//// Recreate the directory
-	//if err := os.Mkdir("static/plots", 0755); err != nil {
-	//	return Images{}, pl.WrapError(err, "failed to create directory")
-	//}
-
 	prImage, err := createPlot("Probabilities", probabilities0, probabilities1)
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create plot")
 	}
-
-	//cdfN, shiftN := computeCDF(utils.Map(v0, view.GetReceivedR), utils.Map(v1, view.GetReceivedR), numBuckets)
-	//cdfN_1, shiftN_1 := computeCDF(utils.Map(v0, view.GetReceivedR_1), utils.Map(v1, view.GetReceivedR_1), numBuckets)
-
-	//prReceivedR, err := createCDFPlot("ReceivedR", cdfN, float64(shiftN), "Client R", "Number of onions received", "CDF")
-	//if err != nil {
-	//	return Images{}, pl.WrapError(err, "failed to create CDF plot")
-	//}
-	//prReceivedR_1, err := createCDFPlot("ReceivedR_1", cdfN_1, float64(shiftN_1), "Client R-1", "Number of onions received", "CDF")
-	//if err != nil {
-	//	return Images{}, pl.WrapError(err, "failed to create CDF plot")
-	//}
 
 	cdfProb0, shift0 := computeFloatCDF(utils.Map(v0, view.GetProbScen0), utils.Map(v1, view.GetProbScen0), numBuckets)
 	cdfProb1, shift1 := computeFloatCDF(utils.Map(v0, view.GetProbScen1), utils.Map(v1, view.GetProbScen1), numBuckets)
