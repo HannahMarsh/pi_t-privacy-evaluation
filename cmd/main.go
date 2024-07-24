@@ -47,7 +47,7 @@ func main() {
 		return
 	}
 
-	//from := 70
+	from := 0
 	index := 0
 
 	slog.Info("", "num runs:", len(expectedValues.N)*len(expectedValues.R)*len(expectedValues.ServerLoad)*len(expectedValues.L)*len(expectedValues.X)*len(expectedValues.Scenario)*len(expectedValues.NumRuns))
@@ -64,10 +64,14 @@ func main() {
 									//if index > to {
 									//	return
 									//}
-									//if index < from {
-									//	index++
-									//	continue
-									//}
+									if index < from {
+										index++
+										fmt.Printf("%d, ", index)
+										if index%40 == 0 {
+											fmt.Println()
+										}
+										continue
+									}
 									index++
 
 									// Convert all the numeric parameters to strings

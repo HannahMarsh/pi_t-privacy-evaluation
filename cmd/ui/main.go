@@ -305,11 +305,11 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 	cdfProb0, shift0 := computeFloatCDF(utils.Map(v0, view.GetProbScen0), utils.Map(v1, view.GetProbScen0), numBuckets)
 	cdfProb1, shift1 := computeFloatCDF(utils.Map(v0, view.GetProbScen1), utils.Map(v1, view.GetProbScen1), numBuckets)
 
-	prProb0, err := createFloatCDFPlot("Prob0", cdfProb0, shift0, "Probabilities of Being in Scenario 0", "Probability", "CDF")
+	prProb0, err := createFloatCDFPlot("Prob0", cdfProb0, shift0, "Probabilities of Being in Scenario 0", "Probability", "PDF")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
-	prProb1, err := createFloatCDFPlot("Prob1", cdfProb1, shift1, "Probabilities of Being in Scenario 1", "Probability", "CDF")
+	prProb1, err := createFloatCDFPlot("Prob1", cdfProb1, shift1, "Probabilities of Being in Scenario 1", "Probability", "PDF")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}

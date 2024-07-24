@@ -102,11 +102,13 @@
                         slider.classList.add('disabled');
                     } else {
                         if (key === "NumBuckets") {
-                            slider.value = Math.floor(((values.length - 1) * 0.5));
+                            slider.value = Math.floor(((values.length - 1) * 0.4));
                         } else if (key === "NumRuns") {
                             slider.value = values.length - 1; // Set to the last value initially
                         } else if (key === "N" || key === "R" || key === "ServerLoad" || key === "L") {
                             slider.Value = Math.floor(((values.length - 1) * 0.75));
+                        } else if (key === "X") {
+                            slider.Value = values.length - 1;
                         } else {
                             slider.value = 0; // Set to the first value initially
                         }
@@ -227,7 +229,7 @@
                         <span class="description">(fraction of corrupted nodes)</span>
                     </td>
                     <td>
-                        <input type="range" id="X" list="X-values" step="0.01" />
+                        <input type="range" id="X" list="X-values" />
                         <datalist id="X-values"></datalist>
                     </td>
                     <td class="param-value">
