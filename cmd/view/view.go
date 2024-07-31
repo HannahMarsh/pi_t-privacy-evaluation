@@ -55,12 +55,12 @@ func GetProbScen1(v View) float64 {
 }
 
 type ExpectedValues struct {
-	N          []int `json:"N"`
-	R          []int `json:"R"`
-	ServerLoad []int `json:"ServerLoad"`
-	L          []int `json:"L"`
-	Scenario   []int `json:"Scenario"`
-	NumRuns    []int `json:"NumRuns"`
-	NumBuckets []int `json:"NumBuckets"`
-	X          []int `json:"X"`
+	N          []int     `json:"N"`
+	R          []int     `json:"R"`
+	ServerLoad []int     `json:"ServerLoad"`
+	L          []int     `json:"L"`
+	Scenario   []int     `json:"Scenario"`
+	NumRuns    []int     `json:"NumRuns"`
+	NumBuckets []int     `json:"NumBuckets"`
+	X          []float64 `json:"X"`
 }

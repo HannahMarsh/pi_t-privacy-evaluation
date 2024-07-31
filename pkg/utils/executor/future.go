@@ -63,6 +63,12 @@ func (f *Future[T]) HandleError(handleError func(error)) {
 	})
 }
 
+func (f *Future[T]) ThenDo(next func()) {
+	f.ThenAccept(func(T, error) {
+		next()
+	})
+}
+
 func (f *Future[T]) ThenAccept(next func(T, error)) {
 	f.iFut.ThenAccept(func(result interface{}, err error) {
 		next(f.CastOrDefault(result, err))

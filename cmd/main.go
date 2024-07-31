@@ -7,6 +7,7 @@ import (
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils/executor"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
 	"io/ioutil"
@@ -14,9 +15,15 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 var expectedValues view.ExpectedValues
+
+var allData view.AllData
+var mu sync.RWMutex
+
+var numForks int64
 
 func main() {
 	// Define command-line flags
@@ -65,19 +72,16 @@ func main() {
 
 	from := 0
 	to := -1
-	index := 0
-	numWorkers := 12
+	index := -1
 
-	var wg sync.WaitGroup
-	var wg2 sync.WaitGroup
-	var mu sync.Mutex
+	wp := executor.NewWorkerPool()
 
-	err2, allData := getData("static/data.json")
-	if err2 != nil {
-		slog.Error("failed to get data", err2)
+	err, allData = getData("static/data.json")
+	if err != nil {
+		slog.Error("failed to get data", err)
 	}
 
-	count := 0
+	var count int64
 
 	for _, N := range expectedValues.N {
 		for _, R := range expectedValues.R {
@@ -86,99 +90,39 @@ func main() {
 					if N <= R && L < N && D*N <= R*L { // number of onions each client sends out has to be less than path length
 						for _, X := range expectedValues.X {
 							for _, Scenario := range expectedValues.Scenario {
+								index++
 								if index < from || (to != -1 && index > to) {
-									index++
-									fmt.Printf("%d, ", index)
-									if index%40 == 0 {
-										fmt.Println()
-									}
 									continue
 								}
 								index++
+								n := N
+								r := R
+								d := D
+								l := L
+								x := X
+								i := index
+								scenario := Scenario
 
-								mu.Lock()
+								fut := executor.SubmitWithError(wp, view.Data{}, func() (view.Data, error) {
+									return doRun(n, r, d, l, scenario, i, x)
+								})
 
-								for count >= numWorkers {
-									mu.Unlock()
-									wg.Wait()
-									mu.Lock()
-								}
-								count++
-								if count == numWorkers {
-									wg.Add(1)
-								}
-								mu.Unlock()
+								fut.HandleError(func(err error) {
+									slog.Error(fmt.Sprintf("%s -> (%d) %d:\tN=%d, R=%d, D=%d, L=%d, X=%f, s=%d", pl.GetFuncName(), atomic.AddInt64(&count, 1), i, n, r, d, l, x, scenario), err)
+								})
 
-								wg2.Add(1)
+								fut2 := fut.Map(func(data view.Data) (view.Data, error) {
+									saveData(data)
+									return data, nil
+								})
 
-								go func(n, r, d, l, s, i int) {
+								fut2.HandleError(func(err error) {
+									slog.Error("failed to save data for index "+fmt.Sprintf("%d", i), err)
+								})
 
-									defer wg2.Done()
-
-									// Convert all the numeric parameters to strings
-									NStr := strconv.Itoa(n)
-									RStr := strconv.Itoa(r)
-									DStr := strconv.Itoa(d)
-									LStr := strconv.Itoa(l)
-									XStr := fmt.Sprintf("%f", X)
-									ScenarioStr := strconv.Itoa(s)
-									numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
-
-									dataFilePath := fmt.Sprintf("static/temp/%d_%d_%d_%d_%d_%d.json", n, r, d, l, i, s)
-
-									// Create the command
-									cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr, "-filePath", dataFilePath)
-
-									// Run the command and capture its output
-									output, err := cmd.CombinedOutput()
-									if err != nil {
-										fmt.Printf("Error running command: %v\n", err)
-										return
-									}
-
-									err2, newData := getData(dataFilePath)
-									if err2 != nil {
-										slog.Error("failed to get data", err2)
-									}
-
-									didAppend := false
-
-									doDone := false
-
-									mu.Lock()
-									for i := range allData.Data {
-										if allData.Data[i].Params == newData.Data[0].Params {
-											allData.Data[i].Views = append(allData.Data[i].Views, newData.Data[0].Views...)
-											didAppend = true
-										}
-									}
-
-									if !didAppend {
-										allData.Data = append(allData.Data, view.Data{
-											Params: newData.Data[0].Params,
-											Views:  newData.Data[0].Views,
-										})
-									}
-									// Print the output
-									fmt.Printf("%s%d, ", output, i)
-									if i%40 == 0 {
-										fmt.Println()
-									}
-									count--
-									if count == numWorkers-1 {
-										doDone = true
-									}
-									mu.Unlock()
-
-									if doDone {
-										wg.Done()
-									}
-
-									err = os.Remove(dataFilePath)
-									if err != nil {
-										slog.Error("Failed to delete file: %s", err)
-									}
-								}(N, R, D, L, Scenario, index)
+								fut2.ThenDo(func() {
+									slog.Info(fmt.Sprintf("(%d) %d:\tN=%d, R=%d, D=%d, L=%d, X=%f, s=%d", atomic.AddInt64(&count, 1), i, n, r, d, l, x, scenario))
+								})
 							}
 						}
 					}
@@ -187,7 +131,7 @@ func main() {
 		}
 	}
 
-	wg2.Wait()
+	wp.Wait()
 
 	// Marshal the updated struct back into JSON
 	updatedJSON, err := json.MarshalIndent(allData, "", "  ")
@@ -205,6 +149,55 @@ func main() {
 	slog.Info("All data collected")
 }
 
+func doRun(n, r, d, l, s, i int, x float64) (data view.Data, err error) {
+
+	// Convert all the numeric parameters to strings
+	NStr := strconv.Itoa(n)
+	RStr := strconv.Itoa(r)
+	DStr := strconv.Itoa(d)
+	LStr := strconv.Itoa(l)
+	XStr := fmt.Sprintf("%f", x)
+	ScenarioStr := strconv.Itoa(s)
+	numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
+
+	dataFilePath := fmt.Sprintf("static/temp/%d.json", i)
+
+	forks := atomic.AddInt64(&numForks, 1)
+
+	// Create the command
+	cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr, "-filePath", dataFilePath)
+
+	atomic.AddInt64(&numForks, -1)
+
+	// Run the command and capture its output
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return data, pl.WrapError(err, "forks = %d -> failed to run command. Got output: %s", forks, string(output))
+	}
+	fmt.Printf("%s", output)
+
+	err, newData := getData(dataFilePath)
+	if err != nil {
+		return data, pl.WrapError(err, "failed to get data")
+	}
+
+	if err := os.Remove(dataFilePath); err != nil {
+		return data, pl.WrapError(err, "failed to delete file")
+	}
+
+	if newData.Data != nil && len(newData.Data) > 0 {
+		return newData.Data[0], nil
+	}
+
+	return data, nil
+}
+
+func saveData(data view.Data) {
+	mu.Lock()
+	defer mu.Unlock()
+	allData.Data = append(allData.Data, data)
+}
+
 func getData(dataFilePath string) (error, view.AllData) {
 	// Read the file contents
 	fc, err := ioutil.ReadFile(dataFilePath)
@@ -212,11 +205,11 @@ func getData(dataFilePath string) (error, view.AllData) {
 		return nil, view.AllData{}
 	}
 
-	var allData view.AllData
+	var ad view.AllData
 
 	// Unmarshal the JSON content into a struct
-	if err = json.Unmarshal(fc, &allData); err != nil {
-		allData.Data = make([]view.Data, 0)
+	if err = json.Unmarshal(fc, &ad); err != nil {
+		ad.Data = make([]view.Data, 0)
 	}
-	return nil, allData
+	return nil, ad
 }

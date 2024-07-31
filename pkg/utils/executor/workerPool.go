@@ -114,3 +114,7 @@ func (wp *WorkerPool) Stop() {
 	close(wp.taskQueue)
 	wp.wg.Wait()
 }
+
+func (wp *WorkerPool) Wait() {
+	wp.wg.Wait()
+}
