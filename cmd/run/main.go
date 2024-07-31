@@ -95,13 +95,10 @@ func main() {
 		newSystem.StartRun()
 
 		probabilities := newSystem.GetProbabilities(2)
-		receivedR := newSystem.GetNumOnionsReceived(p.R)
-		receivedR_1 := newSystem.GetNumOnionsReceived(p.R - 1)
 
 		runs[i] = view.View{
-			Probabilities: probabilities[:p.R+1],
-			ReceivedR:     receivedR,
-			ReceivedR_1:   receivedR_1,
+			ProbR:   probabilities[p.R],
+			ProbR_1: probabilities[p.R-1],
 		}
 	}
 

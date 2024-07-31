@@ -12,46 +12,37 @@ type Data struct {
 }
 
 type View struct {
-	Probabilities []float64 `json:"Probabilities"`
-	ReceivedR     int       `json:"ReceivedR"`
-	ReceivedR_1   int       `json:"ReceivedR_1"`
-	ProbScen0     float64   `json:"ProbScen0"`
-	ProbScen1     float64   `json:"ProbScen1"`
+	ProbR   float64 `json:"ProbR"`
+	ProbR_1 float64 `json:"ProbR_1"`
 }
 
-func GetReceivedR(v View) int {
-	return v.ReceivedR
-}
-func GetReceivedR_1(v View) int {
-	return v.ReceivedR_1
-}
-
+//	func GetReceivedR(v View) int {
+//		return v.ReceivedR
+//	}
+//
+//	func GetReceivedR_1(v View) int {
+//		return v.ReceivedR_1
+//	}
 func GetProbScen0(v View) float64 {
-	if v.ProbScen0+v.ProbScen1 == 0 {
-		probScen0 := v.Probabilities[len(v.Probabilities)-2]
-		probScen1 := v.Probabilities[len(v.Probabilities)-1]
-		if probScen0+probScen1 == 0 {
-			probScen0 = 0.5
-			probScen1 = 0.5
-		}
-		v.ProbScen0 = probScen0 / (probScen1 + probScen0)
-		v.ProbScen1 = probScen1 / (probScen1 + probScen0)
+
+	probScen0 := v.ProbR_1
+	probScen1 := v.ProbR
+	if probScen0+probScen1 == 0 {
+		probScen0 = 0.5
+		probScen1 = 0.5
 	}
-	return v.ProbScen0
+	return probScen0 / (probScen1 + probScen0)
+
 }
 
 func GetProbScen1(v View) float64 {
-	if v.ProbScen0+v.ProbScen1 == 0 {
-		probScen0 := v.Probabilities[len(v.Probabilities)-2]
-		probScen1 := v.Probabilities[len(v.Probabilities)-1]
-		if probScen0+probScen1 == 0 {
-			probScen0 = 0.5
-			probScen1 = 0.5
-		}
-		v.ProbScen0 = probScen0 / (probScen1 + probScen0)
-		v.ProbScen1 = probScen1 / (probScen1 + probScen0)
+	probScen0 := v.ProbR_1
+	probScen1 := v.ProbR
+	if probScen0+probScen1 == 0 {
+		probScen0 = 0.5
+		probScen1 = 0.5
 	}
-	return v.ProbScen1
+	return probScen1 / (probScen1 + probScen0)
 }
 
 type ExpectedValues struct {

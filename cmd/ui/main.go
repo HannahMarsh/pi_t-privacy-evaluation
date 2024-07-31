@@ -269,12 +269,12 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 	if len(v0) == 0 || len(v1) == 0 {
 		return Images{}, pl.NewError("no views to plot")
 	}
-	probabilities0 := computeAverages(utils.Map(v0, func(v view.View) []float64 {
-		return v.Probabilities
-	}))
-	probabilities1 := computeAverages(utils.Map(v1, func(v view.View) []float64 {
-		return v.Probabilities
-	}))
+	//probabilities0 := computeAverages(utils.Map(v0, func(v view.View) float64 {
+	//return v.ProbR
+	//}))
+	//probabilities1 := computeAverages(utils.Map(v1, func(v view.View) float64 {
+	//return v.ProbR_1
+	//}))
 
 	// Read the contents of the directory
 	contents, err := ioutil.ReadDir("static/plots")
@@ -290,10 +290,10 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 		}
 	}
 
-	prImage, err := createPlot("Probabilities", probabilities0, probabilities1)
-	if err != nil {
-		return Images{}, pl.WrapError(err, "failed to create plot")
-	}
+	//prImage, err := createPlot("Probabilities", probabilities0, probabilities1)
+	//if err != nil {
+	//	return Images{}, pl.WrapError(err, "failed to create plot")
+	//}
 
 	confidence := append(utils.Map(v0, view.GetProbScen0), utils.Map(v1, view.GetProbScen1)...)
 	confidencePDF := computeHistogram(confidence, numBuckets)
@@ -304,7 +304,6 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 	}
 
 	return Images{
-		Probabilities:  prImage,
 		ProbConfidence: prConfidence,
 	}, nil
 }
