@@ -8,14 +8,49 @@ import (
 	"sync"
 )
 
+type NoMixing struct {
+	NodeId int
+	Onions map[int][]*Transaction
+	mu     sync.RWMutex
+}
+
+func NewNoMixing(nodeId int) *NoMixing {
+	return &NoMixing{
+		NodeId: nodeId,
+		Onions: make(map[int][]*Transaction),
+	}
+}
+
+func (n *NoMixing) AddTransaction(layer int, t *Transaction) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		if _, exists := n.Onions[layer]; !exists {
+			n.Onions[layer] = make([]*Transaction, 0)
+		}
+		n.Onions[layer] = append(n.Onions[layer], t)
+	}()
+	wg.Wait()
+}
+
+type Transaction struct {
+	Processor int
+	LastHop   int
+	NextHop   int
+}
+
 type System struct {
-	allParties map[int]interfaces.Node
-	nodes      []int
-	clients    []int
-	p          interfaces.Params
-	mu         sync.RWMutex
-	sent       [][][]int // sent[i][j][k] = number of onions sent during round i from node j to node k
-	received   [][][]int // received[i][j][k]number of onions received during round i from node j to node k
+	allParties     map[int]interfaces.Node
+	nodes          []int
+	clients        []int
+	p              interfaces.Params
+	mu             sync.RWMutex
+	sent           [][][]int // sent[i][j][k] = number of onions sent during round i from node j to node k
+	received       [][][]int // received[i][j][k]number of onions received during round i from node j to node k
+	corruptedViews map[int]*NoMixing
 }
 
 func NewSystem(p interfaces.Params) interfaces.System {
@@ -41,7 +76,7 @@ func NewSystem(p interfaces.Params) interfaces.System {
 
 func (s *System) Receive(layer, from, to int) {
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(1) // make the lock reentrant
 	go func() {
 		defer wg.Done()
 		s.mu.Lock()

@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Read the existing JSON file
-	filePath = "static/data.json"
+	filePath = "static/data_old1.json"
 	fileContent, err = ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)

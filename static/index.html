@@ -101,8 +101,10 @@
                             slider.value = Math.floor(((values.length - 1) * 0.4));
                         } else if (key === "NumRuns") {
                             slider.value = values.length - 1; // Set to the last value initially
-                        } else if (key === "N" || key === "R" || key === "ServerLoad" || key === "L") {
-                            slider.Value = Math.floor(((values.length - 1) * 0.75));
+                        } else if (key === "N") {
+                            slider.Value = Math.floor(((values.length - 1) * 0.25));
+                        } else if (key === "R" || key === "ServerLoad" || key === "L") {
+                            slider.Value = values.length - 1;
                         } else {
                             slider.value = 0; // Set to the first value initially
                         }

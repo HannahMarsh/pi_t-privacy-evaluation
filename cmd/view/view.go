@@ -62,4 +62,5 @@ type ExpectedValues struct {
 	Scenario   []int `json:"Scenario"`
 	NumRuns    []int `json:"NumRuns"`
 	NumBuckets []int `json:"NumBuckets"`
+	X          []int `json:"X"`
 }
