@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Read the existing JSON file
-	filePath = "static/data_old1.json"
+	filePath = "static/data.json"
 	fileContent, err = ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
@@ -167,7 +167,15 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		return data.Views
 	})
 
-	images, err := plotView(v0[:utils.Max(1, utils.Min(len(v0), numRuns))], v1[:utils.Max(1, utils.Min(len(v0), numRuns))], numBuckets)
+	if len(v0) > numRuns {
+		v0 = v0[:utils.Max(0, utils.Min(len(v0), numRuns))]
+	}
+
+	if len(v1) > numRuns {
+		v1 = v1[:utils.Max(0, utils.Min(len(v0), numRuns))]
+	}
+
+	images, err := plotView(v0, v1, numBuckets)
 	if err != nil {
 		slog.Error("failed to plot view", err)
 		http.Error(w, "Failed to plot view", http.StatusInternalServerError)
@@ -261,12 +269,11 @@ func handleExpectedValues(w http.ResponseWriter, r *http.Request) {
 }
 
 type Images struct {
-	Probabilities  string `json:"probabilities_img"`
-	ProbConfidence string `json:"probConfidence_img"`
+	Ratios string `json:"ratios_img"`
 }
 
 func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
-	if len(v0) == 0 || len(v1) == 0 {
+	if len(v0) == 0 && len(v1) == 0 {
 		return Images{}, pl.NewError("no views to plot")
 	}
 	//probabilities0 := computeAverages(utils.Map(v0, func(v view.View) float64 {
@@ -295,16 +302,16 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 	//	return Images{}, pl.WrapError(err, "failed to create plot")
 	//}
 
-	confidence := append(utils.Map(v0, view.GetProbScen0), utils.Map(v1, view.GetProbScen1)...)
-	confidencePDF := computeHistogram(confidence, numBuckets)
+	ratios := append(utils.Map(v0, view.GetRatio), utils.Map(v1, view.GetRatio)...)
+	ratiosPDF := computeHistogram(ratios, numBuckets)
 
-	prConfidence, err := createFloatCDFPlot("Confidence", confidencePDF, "Adversary's Confidence When Predicting the Correct Scenario", "Confidence Level (%)", "Frequency (# of trials)")
+	prConfidence, err := createFloatCDFPlot("ratio", ratiosPDF, "Ratio of ProbR_1 Over Prob R", "Ratio", "Frequency (# of trials)")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
 
 	return Images{
-		ProbConfidence: prConfidence,
+		Ratios: prConfidence,
 	}, nil
 }
 

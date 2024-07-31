@@ -23,26 +23,14 @@ type View struct {
 //	func GetReceivedR_1(v View) int {
 //		return v.ReceivedR_1
 //	}
-func GetProbScen0(v View) float64 {
 
-	probScen0 := v.ProbR_1
-	probScen1 := v.ProbR
-	if probScen0+probScen1 == 0 {
-		probScen0 = 0.5
-		probScen1 = 0.5
+func GetRatio(v View) float64 {
+	if v.ProbR == 0.0 {
+		v.ProbR = 0.000001
 	}
-	return probScen0 / (probScen1 + probScen0)
 
-}
+	return v.ProbR_1 / v.ProbR
 
-func GetProbScen1(v View) float64 {
-	probScen0 := v.ProbR_1
-	probScen1 := v.ProbR
-	if probScen0+probScen1 == 0 {
-		probScen0 = 0.5
-		probScen1 = 0.5
-	}
-	return probScen1 / (probScen1 + probScen0)
 }
 
 type ExpectedValues struct {

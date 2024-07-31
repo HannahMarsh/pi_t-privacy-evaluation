@@ -69,8 +69,8 @@ func main() {
 
 	slog.Info("", "num runs:", numTImes)
 
-	from := 0
-	to := 1
+	from := 2
+	to := 15
 	index := -1
 
 	wp := executor.NewWorkerPool()
