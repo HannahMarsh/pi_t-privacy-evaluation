@@ -245,6 +245,12 @@ func (f *IFuture) ThenApply(next func(interface{}, error) (interface{}, error)) 
 	return fut
 }
 
+func (f *IFuture) ThenDo(next func()) {
+	f.ThenAccept(func(interface{}, error) {
+		next()
+	})
+}
+
 func (f *IFuture) addDependency(fut *IFuture) {
 	f.mu.Lock()
 	if !f.isDone {

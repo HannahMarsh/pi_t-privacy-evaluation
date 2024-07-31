@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
@@ -12,8 +13,6 @@ import (
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
-	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -21,24 +20,28 @@ import (
 
 func main() {
 	// Define command-line flags
+	//logLevel := flag.String("log-level", "debug", "Log level")
+	//N := flag.Int("N", 10, "Number of nodes")
+	//R := flag.Int("R", 10, "Number of clients")
+	//ServerLoad := flag.Int("ServerLoad", 2, "Serverload")
+	//L := flag.Int("L", 5, "Number of layers")
+	//X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
+	//Scenario := flag.Int("Scenario", 0, "Scenario")
+	//numRuns := flag.Int("numRuns", 3, "Number of runs")
 	logLevel := flag.String("log-level", "debug", "Log level")
-	N := flag.Int("N", 10, "Number of nodes")
-	R := flag.Int("R", 10, "Number of clients")
-	ServerLoad := flag.Int("ServerLoad", 2, "Serverload")
-	L := flag.Int("L", 5, "Number of layers")
+	N := flag.Int("N", 35, "Number of nodes")
+	R := flag.Int("R", 50, "Number of clients")
+	ServerLoad := flag.Int("ServerLoad", 15, "Serverload")
+	L := flag.Int("L", 20, "Number of layers")
 	X := flag.Float64("X", 1.0, "Fraction of corrupted nodes")
 	Scenario := flag.Int("Scenario", 0, "Scenario")
-	numRuns := flag.Int("numRuns", 3, "Number of runs")
-	filePath := flag.String("filePath", "static/data.json", "File path")
+	numRuns := flag.Int("numRuns", 100, "Number of runs")
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
 
-	//for i := 0; i < 20; i++ {
-	//	kk := utils.Max(1, int((rand.NormFloat64()*(*StdDev))+float64(*ServerLoad)))
-	//	fmt.Println(kk)
-	//}
-
 	pl.SetUpLogrusAndSlog(*logLevel)
+
+	//slog.Info("started run", "N", *N, "R", *R, "ServerLoad", *ServerLoad, "L", *L, "X", *X, "Scenario", *Scenario, "NumRums", *numRuns)
 
 	// set GOMAXPROCS
 	if _, err := maxprocs.Set(); err != nil {
@@ -86,85 +89,32 @@ func main() {
 		}
 		nodes[id] = c
 	}
-	//slog.Info("Starting runs", "N", N, "R", R, "ServerLoad", ServerLoad, "L", L, "X", X, "StdDev", StdDev, "Scenario", Scenario)
 
-	for i := 0; i < *numRuns; i++ {
-		if err := newSystem.StartRun(); err != nil {
-			slog.Error("failed to start run", err)
-			os.Exit(1)
-		}
+	for index := 0; index < *numRuns; index++ {
+		i := index
+		newSystem.StartRun()
 
 		probabilities := newSystem.GetProbabilities(2)
 		receivedR := newSystem.GetNumOnionsReceived(p.R)
 		receivedR_1 := newSystem.GetNumOnionsReceived(p.R - 1)
-		//probScen0 := probabilities[p.R-1]
-		//probScen1 := probabilities[p.R]
-		//
-		//if probScen0+probScen1 == 0 {
-		//	probScen0 = 0.5
-		//	probScen1 = 0.5
-		//}
 
 		runs[i] = view.View{
 			Probabilities: probabilities[:p.R+1],
 			ReceivedR:     receivedR,
 			ReceivedR_1:   receivedR_1,
-			//ProbScen0:     probScen0 / (probScen1 + probScen0), // normalise
-			//ProbScen1:     probScen1 / (probScen1 + probScen0), // normalise
 		}
 	}
 
-	// Open the file with the appropriate flags
-	file, err := os.OpenFile(*filePath, os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		log.Fatalf("Failed to open file: %s", err)
-	}
-	defer file.Close()
-
-	// Read the file contents
-	fileContent, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Fatalf("Failed to read file: %s", err)
+	data := view.Data{
+		Params: p,
+		Views:  runs,
 	}
 
-	var allData view.AllData
-
-	// Unmarshal the JSON content into a struct
-	if err = json.Unmarshal(fileContent, &allData); err != nil {
-		//slog.Error("failed to unmarshal JSON", err)
-		allData.Data = make([]view.Data, 0)
-	}
-
-	//	slog.Info("All data collected")
-
-	didAppend := false
-	for i := range allData.Data {
-		if allData.Data[i].Params == p {
-			allData.Data[i].Views = append(allData.Data[i].Views, runs...)
-			didAppend = true
-		}
-	}
-
-	if !didAppend {
-
-		allData.Data = append(allData.Data, view.Data{
-			Params: p,
-			Views:  runs,
-		})
-	}
-
-	// Marshal the updated struct back into JSON
-	updatedJSON, err := json.MarshalIndent(allData, "", "  ")
+	outputJson, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		slog.Error("failed to marshal JSON", err)
-		return
+		os.Exit(1)
 	}
 
-	// Write the updated JSON back to the file
-	if err := ioutil.WriteFile(*filePath, updatedJSON, 0666); err != nil {
-		slog.Error("failed to write file", err)
-		return
-	}
-
-	//fmt.Println("File updated successfully.")
+	fmt.Println(string(outputJson))
 }

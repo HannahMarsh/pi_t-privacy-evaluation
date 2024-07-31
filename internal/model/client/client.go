@@ -111,18 +111,6 @@ func (c *Client) processMessage(msg structs.Message, nodes, clients []int) (onio
 			onions = append(onions, o)
 		}
 	}
-	//
-	//numCheckPointOnionsToSend := utils.Max(1, int((rand.NormFloat64()*4.0)+float64(c.s.GetParams().ServerLoad)))
-	//
-	////slog.Info("Client creating checkpoint onions", "num_onions", numCheckPointOnionsToSend)
-	//
-	//// create checkpoint onions
-	//for i := 0; i < numCheckPointOnionsToSend; i++ {
-	//	if o, err = c.createCheckpointOnion(i + 1, nodes, clients); err != nil {
-	//		return nil, pl.WrapError(err, "failed to create checkpoint onion")
-	//	}
-	//	onions = append(onions, o)
-	//}
 
 	return onions, nil
 }
@@ -151,35 +139,29 @@ func (c *Client) createCheckpointOnion(layer int, nodes, clients []int) (onion s
 	}
 }
 
-func (c *Client) StartRun(scenario int) error {
-
+func (c *Client) StartRun(scenario int) {
 	if toSend, err := c.formOnions(scenario); err != nil {
-		return pl.WrapError(err, "failed to form toSend")
+		slog.Error("failed to form toSend", err)
+		return
 	} else {
-		//slog.Info("Client sending onions")
-
 		var wg sync.WaitGroup
 		for _, onion := range toSend {
 			wg.Add(1)
 			go func(o structs.Onion) {
 				defer wg.Done()
-				if err = c.s.Send(0, c.ID, o.To, o); err != nil {
-					slog.Error(fmt.Sprintf("failed to send onions (%d, %d, %d)", o.Layer, c.ID, o.To), err)
-				}
+				c.s.Send(0, c.ID, o.To, o)
 			}(onion)
 		}
-
 		wg.Wait()
-		return nil
 	}
 }
 
-func (c *Client) Receive(o structs.Onion) error {
+func (c *Client) Receive(o structs.Onion) {
 	if _, _, err := o.Peel(); err != nil {
-		return pl.WrapError(err, "failed to peel onion")
+		slog.Error("failed to peel onion", err)
+		return
 	} else {
 		//slog.Info("Client received message", "from", message.From, "to", message.To, "msg", message.Msg, "o", o2)
 	}
 	c.s.Receive(o.Layer, o.From, o.To)
-	return nil
 }

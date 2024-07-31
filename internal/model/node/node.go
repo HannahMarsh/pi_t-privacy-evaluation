@@ -1,10 +1,10 @@
 package node
 
 import (
-	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
+	"golang.org/x/exp/slog"
 )
 
 // Node represents a node in the onion routing network
@@ -29,13 +29,14 @@ func (n *Node) GetID() int {
 	return n.ID
 }
 
-func (n *Node) StartRun(scenario int) error {
-	return nil
+func (n *Node) StartRun(scenario int) {
+
 }
 
-func (n *Node) Receive(o structs.Onion) error {
+func (n *Node) Receive(o structs.Onion) {
 	if o.To != n.ID {
-		return pl.NewError("node.Receive(): onion not meant for this node")
+		pl.LogNewError("node.Receive(): onion not meant for this node")
+		return
 	}
 
 	n.s.Receive(o.Layer, o.From, o.To)
@@ -43,16 +44,9 @@ func (n *Node) Receive(o structs.Onion) error {
 	//slog.Debug("Received onion", "from", o.From, "layer", o.Layer)
 	peeled, _, err := o.Peel()
 	if err != nil {
-		return pl.WrapError(err, "node.Receive(): failed to peel onion")
+		slog.Error("node.Receive(): failed to peel onion", err)
+		return
 	}
 
-	//if n.isCorrupted && o.From == 1 { //} || utils.ContainsElement(alwaysDropFrom, peeled.To)) {
-	//	//slog.Info("Dropping onion", "from", o.From, "to", o.To)
-	//	return nil
-	//}
-
-	if err = n.s.Send(o.Layer, n.ID, peeled.To, peeled); err != nil {
-		return pl.WrapError(err, "node.Receive(): "+fmt.Sprintf("failed to send onions (%d, %d, %d)", o.Layer, n.ID, peeled.To))
-	}
-	return nil
+	n.s.Send(o.Layer, n.ID, peeled.To, peeled)
 }

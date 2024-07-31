@@ -27,6 +27,7 @@ type WorkerPool struct {
 	taskQueue   chan Task
 	workerQueue chan struct{}
 	wg          sync.WaitGroup
+	allTasks    sync.WaitGroup
 }
 
 // NewWorkerPool initializes a new WorkerPool with the optimal number of workers
@@ -53,7 +54,6 @@ func NewWorkerPoolWithMax(maxWorkers int) *WorkerPool {
 // Start initializes the pool to start listening for tasks and dynamically start workers
 func (wp *WorkerPool) dispatch() {
 	for task := range wp.taskQueue {
-		wp.wg.Add(1)
 		select {
 		case wp.workerQueue <- struct{}{}:
 			go wp.worker(task)
@@ -65,9 +65,11 @@ func (wp *WorkerPool) dispatch() {
 
 // worker processes a single task
 func (wp *WorkerPool) worker(task Task) {
+	wp.wg.Add(1)
 	defer wp.wg.Done()
 	defer func() { <-wp.workerQueue }()
 	task.fut.runInThisThread()
+	wp.allTasks.Done()
 }
 
 // SubmitWithError adds a task to the task queue to be processed by the workers and logs error if there was one
@@ -78,7 +80,7 @@ func SubmitWithError[T any](wp *WorkerPool, defaultValue T, task func() (T, erro
 }
 
 // Execute adds a task to the task queue to be processed by the workers
-func Execute[T any](wp *WorkerPool, task func()) {
+func Execute(wp *WorkerPool, task func()) {
 	wp.execute(task)
 }
 
@@ -106,6 +108,7 @@ func (wp *WorkerPool) submit(task func()) *IFuture {
 
 // submitFuture adds a task to the task queue to be processed by the workers
 func (wp *WorkerPool) submitFuture(fut *IFuture) {
+	wp.allTasks.Add(1)
 	wp.taskQueue <- NewTask(fut)
 }
 
@@ -116,5 +119,5 @@ func (wp *WorkerPool) Stop() {
 }
 
 func (wp *WorkerPool) Wait() {
-	wp.wg.Wait()
+	wp.allTasks.Wait()
 }

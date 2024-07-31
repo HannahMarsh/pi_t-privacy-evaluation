@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,8 +23,6 @@ var expectedValues view.ExpectedValues
 
 var allData view.AllData
 var mu sync.RWMutex
-
-var numForks int64
 
 func main() {
 	// Define command-line flags
@@ -71,7 +70,7 @@ func main() {
 	slog.Info("", "num runs:", numTImes)
 
 	from := 0
-	to := -1
+	to := 1
 	index := -1
 
 	wp := executor.NewWorkerPool()
@@ -82,6 +81,15 @@ func main() {
 	}
 
 	var count int64
+
+	cmd := exec.Command("go", "build", "-o", "bin/run", "cmd/run/main.go")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error("failed to build: "+string(output), err)
+		return
+	}
+
+	futs := make([]*executor.Future[view.Data], 0)
 
 	for _, N := range expectedValues.N {
 		for _, R := range expectedValues.R {
@@ -94,7 +102,6 @@ func main() {
 								if index < from || (to != -1 && index > to) {
 									continue
 								}
-								index++
 								n := N
 								r := R
 								d := D
@@ -108,27 +115,27 @@ func main() {
 								})
 
 								fut.HandleError(func(err error) {
-									slog.Error(fmt.Sprintf("%s -> (%d) %d:\tN=%d, R=%d, D=%d, L=%d, X=%f, s=%d", pl.GetFuncName(), atomic.AddInt64(&count, 1), i, n, r, d, l, x, scenario), err)
+									slog.Error(fmt.Sprintf("%s -> (%d) %d:\tN=%d, R=%d, D=%d, L=%d, X=%f, s=%d", pl.GetFuncName(), count, i, n, r, d, l, x, scenario), err)
 								})
 
-								fut2 := fut.Map(func(data view.Data) (view.Data, error) {
-									saveData(data)
-									return data, nil
-								})
-
-								fut2.HandleError(func(err error) {
-									slog.Error("failed to save data for index "+fmt.Sprintf("%d", i), err)
-								})
-
-								fut2.ThenDo(func() {
+								fut.ThenDo(func() {
 									slog.Info(fmt.Sprintf("(%d) %d:\tN=%d, R=%d, D=%d, L=%d, X=%f, s=%d", atomic.AddInt64(&count, 1), i, n, r, d, l, x, scenario))
 								})
+
+								futs = append(futs, fut)
 							}
 						}
 					}
 				}
 			}
 		}
+	}
+
+	for _, fut := range futs {
+		fut.Map(func(data view.Data) (view.Data, error) {
+			saveData(data)
+			return data, nil
+		})
 	}
 
 	wp.Wait()
@@ -160,36 +167,96 @@ func doRun(n, r, d, l, s, i int, x float64) (data view.Data, err error) {
 	ScenarioStr := strconv.Itoa(s)
 	numRunsStr := strconv.Itoa(utils.MaxOver(expectedValues.NumRuns))
 
-	dataFilePath := fmt.Sprintf("static/temp/%d.json", i)
-
-	forks := atomic.AddInt64(&numForks, 1)
-
 	// Create the command
-	cmd := exec.Command("go", "run", "cmd/run/main.go", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr, "-filePath", dataFilePath)
+	cmd := exec.Command("./bin/run", "-N", NStr, "-R", RStr, "-ServerLoad", DStr, "-L", LStr, "-X", XStr, "-Scenario", ScenarioStr, "-numRuns", numRunsStr)
 
-	atomic.AddInt64(&numForks, -1)
-
-	// Run the command and capture its output
-	output, err := cmd.CombinedOutput()
+	// Set up pipes for stdout and stderr
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return data, pl.WrapError(err, "forks = %d -> failed to run command. Got output: %s", forks, string(output))
+		slog.Error("failed to get stdout pipe", err)
+		return data, err
 	}
-	fmt.Printf("%s", output)
 
-	err, newData := getData(dataFilePath)
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return data, pl.WrapError(err, "failed to get data")
+		slog.Error("failed to get stderr pipe", err)
+		return data, err
 	}
 
-	if err := os.Remove(dataFilePath); err != nil {
-		return data, pl.WrapError(err, "failed to delete file")
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		slog.Error("failed to start command", err)
+		return data, err
 	}
 
-	if newData.Data != nil && len(newData.Data) > 0 {
-		return newData.Data[0], nil
+	var outputBuf, errorBuf []byte
+	done := make(chan error)
+
+	// Read stdout in a separate goroutine
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			outputBuf = append(outputBuf, line...)
+			//slog.Info("stdout", "line", line)
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("error reading stdout", err)
+		}
+	}()
+
+	// Read stderr in a separate goroutine
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			errorBuf = append(errorBuf, line...)
+			pl.LogNewError(line)
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("error reading stderr", err)
+		}
+	}()
+
+	// Wait for the command to finish
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	err = <-done
+	if err != nil {
+		slog.Error("Command execution failed", err)
+		return data, err
+	} else {
+		slog.Info("Success")
 	}
 
-	return data, nil
+	//// Log the command and its arguments
+	//slog.Info("Executing command",
+	//	"command", cmd.Path,
+	//	"args", cmd.Args,
+	//)
+	//
+	//// Run the command and capture its output
+	//output, err := cmd.CombinedOutput()
+	//if err != nil {
+	//	return data, pl.WrapError(fmt.Errorf(string(output)), "-> failed to run command: %s", err.Error())
+	//} else {
+	//	slog.Info("Command executed successfully",
+	//		"command", cmd.Path,
+	//		"args", cmd.Args,
+	//		"output", string(output),
+	//	)
+	//}
+
+	var newData view.Data
+
+	err = json.Unmarshal(outputBuf, &newData)
+	if err != nil {
+		return data, pl.WrapError(err, "failed to unmarshal JSON")
+	}
+
+	return newData, nil
 }
 
 func saveData(data view.Data) {

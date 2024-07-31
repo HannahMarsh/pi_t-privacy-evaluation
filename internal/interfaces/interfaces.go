@@ -3,17 +3,17 @@ package interfaces
 import "github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 
 type Node interface {
-	Receive(structs.Onion) error
-	StartRun(scenario int) error
+	Receive(structs.Onion)
+	StartRun(scenario int)
 	GetID() int
 }
 
 type System interface {
-	Send(layer, from, to int, o structs.Onion) error
+	Send(layer, from, to int, o structs.Onion)
 	Receive(layer, from, to int)
 	GetParams() Params
 	RegisterParty(n Node)
-	StartRun() error
+	StartRun()
 	GetNodes() []int
 	GetClients() []int
 	GetNumOnionsReceived(id int) int

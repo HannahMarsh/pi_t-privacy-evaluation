@@ -5,6 +5,7 @@ import (
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/api/structs"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils/executor"
 	"sync"
 )
 
@@ -51,6 +52,7 @@ type System struct {
 	sent           [][][]int // sent[i][j][k] = number of onions sent during round i from node j to node k
 	received       [][][]int // received[i][j][k]number of onions received during round i from node j to node k
 	corruptedViews map[int]*NoMixing
+	wp             *executor.WorkerPool
 }
 
 func NewSystem(p interfaces.Params) interfaces.System {
@@ -71,19 +73,14 @@ func NewSystem(p interfaces.Params) interfaces.System {
 		clients:    utils.NewIntArray(1, p.R+1),
 		sent:       sent,
 		received:   received,
+		wp:         executor.NewWorkerPoolWithMax(1000),
 	}
 }
 
 func (s *System) Receive(layer, from, to int) {
-	var wg sync.WaitGroup
-	wg.Add(1) // make the lock reentrant
-	go func() {
-		defer wg.Done()
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		s.received[layer][from][to]++
-	}()
-	wg.Wait()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.received[layer][from][to]++
 }
 
 func (s *System) GetClients() []int {
@@ -102,28 +99,27 @@ func (s *System) RegisterParty(n interfaces.Node) {
 	s.allParties[n.GetID()] = n
 }
 
-func (s *System) Send(layer, from, to int, o structs.Onion) error {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		s.sent[layer][from][to] = s.sent[layer][from][to] + 1
-	}()
-	wg.Wait()
+func (s *System) Send(layer, from, to int, o structs.Onion) {
+
+	s.mu.Lock()
+	s.sent[layer][from][to]++
+	s.mu.Unlock()
+
 	node := s.getNode(to)
 	if node == nil {
-		return pl.NewError("node with id %d not found", to)
+		pl.LogNewError("node with id %d not found", to)
+		return
 	}
-	return node.Receive(o)
+	executor.Execute(s.wp, func() {
+		node.Receive(o)
+	})
 }
 
 func (s *System) GetParams() interfaces.Params {
 	return s.p
 }
 
-func (s *System) StartRun() error {
+func (s *System) StartRun() {
 	s.mu.Lock()
 	for i := range s.sent {
 		for j := range s.sent[i] {
@@ -136,29 +132,23 @@ func (s *System) StartRun() error {
 	s.mu.Unlock()
 
 	if len(s.GetClients()) != s.p.R {
-		return pl.NewError("number of clients does not match R")
+		pl.LogNewError("number of clients does not match R")
+		return
 	}
 	if len(s.GetNodes()) != s.p.N {
-		return pl.NewError("number of nodes does not match N")
+		pl.LogNewError("number of nodes does not match N")
+		return
 	}
-	var err error
-	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, node := range s.allParties {
 		wg.Add(1)
 		go func(n interfaces.Node) {
 			defer wg.Done()
-			if err2 := n.StartRun(s.p.Scenario); err2 != nil {
-				pl.LogNewError("failed to start run", err2)
-				mu.Lock()
-				defer mu.Unlock()
-				err = err2
-			}
+			n.StartRun(s.p.Scenario)
 		}(node)
 	}
 	wg.Wait()
-	return err
-	//slog.Info("All nodes have started their runs")
+	s.wp.Wait()
 }
 
 func (s *System) getNode(id int) interfaces.Node {
