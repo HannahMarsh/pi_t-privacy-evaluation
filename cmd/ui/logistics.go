@@ -119,8 +119,6 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 	line.LineStyle.Color = firstColor
 	p.Add(line)
 
-	p.Legend.Add(fmt.Sprintf("1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
-
 	points, err := plotter.NewScatter(pts)
 	if err != nil {
 		return "", err
@@ -131,6 +129,7 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 
 	p.Add(points)
 	p.Legend.Add(lineLabel, points)
+	p.Legend.Add(fmt.Sprintf("(trend) 1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
 
 	// Save the plot to a PNG file
 	if err := p.Save(8*vg.Inch, 6*vg.Inch, "static"+newName); err != nil {

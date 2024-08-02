@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
-	"gonum.org/v1/plot/vg/draw"
 	"image/color"
 	"io/ioutil"
 	"log"
@@ -23,7 +23,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
 )
 
@@ -33,136 +36,11 @@ var firstColor = color.RGBA{R: 217, G: 156, B: 201, A: 255}
 var secondColor = color.RGBA{R: 173, G: 202, B: 237, A: 255}
 var overlap = color.RGBA{R: 143, G: 106, B: 176, A: 255}
 
-var cache map[adversary.P]*adversary.V = make(map[adversary.P]*adversary.V)
+var cache map[string]data = make(map[string]data)
+var mu sync.RWMutex
 
-func main() {
-
-	// Define command-line flags
-	logLevel := flag.String("log-level", "debug", "Log level")
-	flag.Usage = flag.PrintDefaults
-	flag.Parse()
-
-	pl.SetUpLogrusAndSlog(*logLevel)
-
-	// set GOMAXPROCS
-	if _, err := maxprocs.Set(); err != nil {
-		slog.Error("failed set max procs", err)
-		os.Exit(1)
-	}
-
-	// Read the existing JSON file
-	filePath := "static/expectedValues.json"
-	fileContent, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
-		return
-	}
-
-	// Unmarshal the JSON content into a struct
-	if err := json.Unmarshal(fileContent, &expectedValues); err != nil {
-		fmt.Printf("Error unmarshaling JSON: %v\n", err)
-		return
-	}
-
-	//// Read the existing JSON file
-	//filePath = "static/data.json"
-	//fileContent, err = ioutil.ReadFile(filePath)
-	//if err != nil {
-	//	fmt.Printf("Error reading file: %v\n", err)
-	//	return
-	//}
-	//
-	//// Unmarshal the JSON content into a struct
-	//if err := json.Unmarshal(fileContent, &allData); err != nil {
-	//	fmt.Printf("Error unmarshaling JSON: %v\n", err)
-	//	return
-	//}
-	//
-	//slog.Info("Getting values of N...")
-	//expectedValues.N = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-	//	return d.Params.N
-	//}))
-	//utils.SortOrdered(expectedValues.N)
-	//defaults.N = expectedValues.N[0]
-	//slog.Info("Got values of N", "N", expectedValues.N)
-	//expectedValues.R = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-	//	return d.Params.R
-	//}))
-	//utils.SortOrdered(expectedValues.R)
-	//defaults.R = expectedValues.R[0]
-	//slog.Info("Geot values of R", "R", expectedValues.R)
-	//expectedValues.ServerLoad = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-	//	return int(d.Params.ServerLoad)
-	//}))
-	//utils.SortOrdered(expectedValues.ServerLoad)
-	//defaults.ServerLoad = expectedValues.ServerLoad[0]
-	//slog.Info("Got values of ServerLoad", "ServerLoad", expectedValues.ServerLoad)
-	//expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-	//	return d.Params.L
-	//}))
-	//utils.SortOrdered(expectedValues.L)
-	//defaults.L = expectedValues.L[0]
-	//slog.Info("Got values of L", "L", expectedValues.L)
-	//
-	//slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
-	//expectedValues.NumRuns = utils.Filter(utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
-	//	return len(d.Views)
-	//}))+1), func(i int) bool {
-	//	return i%(10) == 0
-	//})
-	//defaults.Scenario = expectedValues.Scenario[0]
-	//utils.SortOrdered(expectedValues.NumRuns)
-	//slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
-	//
-	//expectedValues.NumBuckets = utils.RemoveDuplicates(expectedValues.NumBuckets)
-	//utils.SortOrdered(expectedValues.NumBuckets)
-	//
-	//slog.Info("Got values of NumBuckets", "NumBuckets", expectedValues.NumBuckets)
-	//
-	//slog.Info("All data collected")
-
-	// Start HTTP server
-	// Serve static files from the "static" directory
-	http.Handle("/", withHeaders(http.FileServer(http.Dir("static"))))
-	http.Handle("/plots/", withHeaders(http.StripPrefix("/plots/", http.FileServer(http.Dir("static/plots")))))
-	http.Handle("/query", withHeaders(http.HandlerFunc(queryHandler)))
-	http.Handle("/expected", withHeaders(http.HandlerFunc(handleExpectedValues)))
-
-	slog.Info("Starting server on :8200")
-	if err := http.ListenAndServe(":8200", nil); err != nil {
-		slog.Error("failed to start server", err)
-	}
-}
-
-func withHeaders(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("ngrok-skip-browser-warning", "true")
-		h.ServeHTTP(w, r)
-	})
-}
-
-func queryHandler(w http.ResponseWriter, r *http.Request) {
-	p := adversary.P{
-		C:          getIntQueryParam(r, "R"),
-		R:          getIntQueryParam(r, "N"),
-		ServerLoad: float64(getIntQueryParam(r, "ServerLoad")),
-		L:          getIntQueryParam(r, "L"),
-		X:          getFloatQueryParam(r, "X"),
-	}
-	numRuns := getIntQueryParam(r, "NumRuns")
-	numBuckets := getIntQueryParam(r, "NumBuckets")
-
-	slog.Info("Querying data", "Params", p, "NumRuns", numRuns, "NumBuckets", numBuckets)
-
-	if numBuckets <= 0 {
-		numBuckets = 15
-	}
-
-	var v *adversary.V
-
-	if d, present := cache[p]; present && d != nil {
-		v = d
-	} else {
+func getOrCalcData(p adversary.P, numRuns int) adversary.V {
+	if v, present := getData(p); !present {
 		// Convert parameters to strings
 		CStr := strconv.Itoa(p.C)
 		RStr := strconv.Itoa(p.R)
@@ -170,9 +48,6 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		XStr := strconv.FormatFloat(p.X, 'f', 1, 64)
 		LStr := strconv.Itoa(p.L)
 		numRunsStr := strconv.Itoa(numRuns)
-
-		// Create the command
-		//cmd := exec.Command("go", "run", "cmd/adversary/main.go", "-C", CStr, "-R", RStr, "-serverLoad", xStr, "-X", XStr, "-L", LStr, "-numRuns", numRunsStr)
 
 		cmd := exec.Command("go", "run", "cmd/adversary/main.go",
 			"-C", CStr,
@@ -184,7 +59,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		)
 
 		// Debug: Print command
-		fmt.Printf("Executing: go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s\n", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr)
+		//fmt.Printf("Executing: go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s\n", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr)
 
 		// Set up pipes for stdout and stderr
 		stdout, err := cmd.StdoutPipe()
@@ -239,8 +114,9 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		err = <-done
 		if err != nil {
 			slog.Error("Command execution failed", err)
+			return v
 		} else {
-			slog.Info("Success")
+			slog.Info(fmt.Sprintf("Done with go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr))
 		}
 
 		var vv adversary.V
@@ -249,33 +125,244 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("Failed to unmarshall", err)
 		} else {
-			v = &vv
-			//slog.Info("", "", v.P)
+			v = vv
 		}
 
-		cache[p] = v
+		setData(p, v)
 	}
 
-	//
-	//v := find(p)
-	//v0 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
-	//	return data.Params.Scenario == 0
-	//}), func(data view.Data) []view.View {
-	//	return data.Views
-	//})
-	//v1 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
-	//	return data.Params.Scenario == 1
-	//}), func(data view.Data) []view.View {
-	//	return data.Views
-	//})
-	//
-	//if len(v0) > numRuns {
-	//	v0 = v0[:utils.Max(0, utils.Min(len(v0), numRuns))]
-	//}
-	//
-	//if len(v1) > numRuns {
-	//	v1 = v1[:utils.Max(0, utils.Min(len(v0), numRuns))]
-	//}
+	v, _ := getData(p)
+	return v
+}
+
+func getData(p adversary.P) (v adversary.V, present bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	var d data
+	if d, present = cache[p.Hash()]; present {
+		return d.V, true
+	}
+	return v, false
+}
+
+func hasData(p adversary.P) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	_, present := cache[p.Hash()]
+	return present
+}
+func setData(p adversary.P, v adversary.V) {
+	mu.Lock()
+	defer mu.Unlock()
+	cache[p.Hash()] = data{
+		P: p,
+		V: v,
+	}
+}
+
+type data struct {
+	P adversary.P `json:"P"`
+	V adversary.V `json:"V"`
+}
+
+func main() {
+
+	// Define command-line flags
+	logLevel := flag.String("log-level", "debug", "Log level")
+	flag.Usage = flag.PrintDefaults
+	flag.Parse()
+
+	pl.SetUpLogrusAndSlog(*logLevel)
+
+	// set GOMAXPROCS
+	if _, err := maxprocs.Set(); err != nil {
+		slog.Error("failed set max procs", err)
+		os.Exit(1)
+	}
+
+	// Read the existing JSON file
+	filePath := "static/expectedValues.json"
+	fileContent, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+
+	// Unmarshal the JSON content into a struct
+	if err := json.Unmarshal(fileContent, &expectedValues); err != nil {
+		fmt.Printf("Error unmarshaling JSON: %v\n", err)
+	}
+
+	// Read the existing JSON file
+	filePath = "static/data2.json"
+	fileContent, err = ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+
+	// Unmarshal the JSON content into a struct
+	if err := json.Unmarshal(fileContent, &cache); err != nil {
+		fmt.Printf("Error unmarshaling JSON: %v\n", err)
+	}
+
+	// Start HTTP server
+	// Create a new HTTP server with specific configurations
+	server := &http.Server{
+		Addr: ":8200",
+	}
+
+	// Serve static files from the "static" directory
+	http.Handle("/", withHeaders(http.FileServer(http.Dir("static"))))
+	http.Handle("/plots/", withHeaders(http.StripPrefix("/plots/", http.FileServer(http.Dir("static/plots")))))
+	http.Handle("/query", withHeaders(http.HandlerFunc(queryHandler)))
+	http.Handle("/expected", withHeaders(http.HandlerFunc(handleExpectedValues)))
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Create a channel to receive OS signals
+	sigChan := make(chan os.Signal, 1)
+	// Relay incoming signals to sigChan
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start a goroutine to handle signals
+	go func() {
+		sig := <-sigChan
+		fmt.Printf("Received signal: %s\n", sig)
+		packageData()
+		// Create a context with a timeout to gracefully shut down the server
+
+		defer cancel()
+
+		// Shutdown the server gracefully
+		if err := server.Shutdown(ctx); err != nil {
+			fmt.Printf("Error shutting down server: %v\n", err)
+		} else {
+			fmt.Println("Server gracefully stopped")
+		}
+		os.Exit(0)
+	}()
+
+	go collectData(expectedValues, ctx)
+
+	slog.Info("Starting server on :8200")
+	if err := server.ListenAndServe(); err != nil {
+		if err != http.ErrServerClosed {
+			slog.Error("failed to start server", err)
+		}
+	}
+}
+
+func collectData(values view.ExpectedValues, ctx context.Context) {
+	nValues := values.N
+	rValues := values.R
+	serverLoadValues := values.ServerLoad
+	lValues := values.L
+	xValues := values.X
+
+	index := 0
+
+	ps := make([]adversary.P, 0)
+
+	for _, r := range nValues {
+		for _, c := range rValues {
+			for _, serverLoad := range serverLoadValues {
+				for _, l := range lValues {
+					for _, x := range xValues {
+						if err := ctx.Err(); err != nil {
+							fmt.Printf("Stopping data collection: %v\n", err)
+							return
+						}
+						p := adversary.P{
+							C:          c,
+							R:          r,
+							ServerLoad: float64(serverLoad),
+							L:          l,
+							X:          x,
+						}
+						if !hasData(p) {
+							index++
+							ps = append(ps, p)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	utils.Shuffle(ps)
+
+	slog.Info("", "Numtimes", index)
+
+	var wg sync.WaitGroup
+
+	total := float64(index) / 100.0
+	index = 0
+
+	for _, p := range ps {
+		if err := ctx.Err(); err != nil {
+			fmt.Printf("Stopping data collection: %v\n", err)
+			return
+		}
+		if !hasData(p) {
+			index++
+			if index%5 == 0 {
+				wg.Wait()
+			}
+			wg.Add(1)
+			go func(pp adversary.P, i int) {
+				defer wg.Done()
+				getOrCalcData(pp, 100)
+				slog.Info(fmt.Sprintf("Done with %f%%", float64(i)/total))
+			}(p, index)
+		}
+	}
+	slog.Info("All data collected")
+}
+
+func packageData() {
+	// Marshal the updated struct back into JSON
+
+	updatedJSON, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		slog.Error("failed to marshal JSON", err)
+		return
+	}
+
+	// Write the updated JSON back to the file
+	if err = ioutil.WriteFile("static/data2.json", updatedJSON, 0644); err != nil {
+		slog.Error("failed to write file", err)
+		return
+	}
+
+	slog.Info("All data collected")
+}
+
+func withHeaders(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ngrok-skip-browser-warning", "true")
+		h.ServeHTTP(w, r)
+	})
+}
+
+func queryHandler(w http.ResponseWriter, r *http.Request) {
+	p := adversary.P{
+		C:          getIntQueryParam(r, "R"),
+		R:          getIntQueryParam(r, "N"),
+		ServerLoad: float64(getIntQueryParam(r, "ServerLoad")),
+		L:          getIntQueryParam(r, "L"),
+		X:          getFloatQueryParam(r, "X"),
+	}
+	numRuns := getIntQueryParam(r, "NumRuns")
+	numBuckets := getIntQueryParam(r, "NumBuckets")
+
+	slog.Info("Querying data", "Params", p, "NumRuns", numRuns, "NumBuckets", numBuckets)
+
+	if numBuckets <= 0 {
+		numBuckets = 15
+	}
+
+	v := getOrCalcData(p, numRuns)
 
 	images, err := plotView(v, numBuckets)
 	if err != nil {
@@ -289,64 +376,6 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode data to JSON", http.StatusInternalServerError)
 	}
 }
-
-//
-//func find(p interfaces.Params) []view.Data {
-//
-//	v := allData.Data
-//
-//	if v1 := utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.N == p.N
-//	}); len(v1) > 0 {
-//		v = v1
-//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.N == defaults.N
-//	}); len(v1) > 0 {
-//		v = v1
-//	}
-//
-//	if v1 := utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.R == p.R
-//	}); len(v1) > 0 {
-//		v = v1
-//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.R == defaults.R
-//	}); len(v1) > 0 {
-//		v = v1
-//	}
-//
-//	if v1 := utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.L == p.L
-//	}); len(v1) > 0 {
-//		v = v1
-//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.L == defaults.L
-//	}); len(v1) > 0 {
-//		v = v1
-//	}
-//
-//	if v1 := utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.ServerLoad == p.ServerLoad
-//	}); len(v1) > 0 {
-//		v = v1
-//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.ServerLoad == defaults.ServerLoad
-//	}); len(v1) > 0 {
-//		v = v1
-//	}
-//
-//	if v1 := utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.X == p.X
-//	}); len(v1) > 0 {
-//		v = v1
-//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-//		return data.Params.X == defaults.X
-//	}); len(v1) > 0 {
-//		v = v1
-//	}
-//
-//	return v
-//}
 
 func getIntQueryParam(r *http.Request, name string) int {
 	value, err := strconv.Atoi(r.URL.Query().Get(name))
@@ -377,7 +406,7 @@ type Images struct {
 	RatiosPlot   string `json:"ratios_plot_img"`
 }
 
-func plotView(v *adversary.V, numBuckets int) (Images, error) {
+func plotView(v adversary.V, numBuckets int) (Images, error) {
 
 	// Read the contents of the directory
 	contents, err := ioutil.ReadDir("static/plots")
@@ -396,7 +425,7 @@ func plotView(v *adversary.V, numBuckets int) (Images, error) {
 	ratios := v.Ratios
 	ratiosPDF := computeHistogram(ratios, numBuckets)
 
-	prConfidence, err := createFloatCDFPlot("ratio", ratiosPDF, "Ratio of ProbR_1 Over Prob R", "Ratio", "Frequency (# of trials)")
+	prConfidence, err := createFloatCDFPlot("ratio", ratiosPDF, "Ratio of Pr[0] Over Pr[1]", "Ratio", "Frequency (# of trials)")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
@@ -416,23 +445,6 @@ func plotView(v *adversary.V, numBuckets int) (Images, error) {
 		EpsilonDelta: epDelta,
 		RatiosPlot:   ratiosPlot,
 	}, nil
-}
-
-func computeAverages(data [][]float64) []float64 {
-	if len(data) == 0 {
-		return nil
-	}
-
-	averages := make([]float64, len(data[0]))
-	for i := 0; i < len(data[0]); i++ {
-		sum := 0.0
-		for j := 0; j < len(data); j++ {
-			sum += data[j][i]
-		}
-		averages[i] = sum / float64(len(data))
-	}
-
-	return averages
 }
 
 type range_ struct {
@@ -496,97 +508,6 @@ func computeHistogram(data []float64, numBuckets int) []pair {
 	return pdf
 }
 
-func createPlot(file string, probabilities0, probabilities1 []float64) (string, error) {
-
-	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
-
-	type temp struct {
-		value0  float64
-		value1  float64
-		overlap float64
-		label   string
-	}
-
-	t := make([]temp, len(probabilities0))
-
-	for i := range probabilities0 {
-		t[i] = temp{value0: probabilities0[i], value1: probabilities1[i], overlap: math.Min(probabilities0[i], probabilities1[i]), label: fmt.Sprintf("%d", i+1)}
-	}
-
-	//utils.Sort(t, func(i, j temp) bool {
-	//	return i.value0 > j.value0
-	//})
-
-	probabilities0 = utils.Map(t, func(i temp) float64 {
-		return i.value0
-	})
-
-	probabilities1 = utils.Map(t, func(i temp) float64 {
-		return i.value1
-	})
-
-	overlap_ := utils.Map(t, func(i temp) float64 {
-		return i.overlap
-	})
-
-	// Create a new plot
-	p := plot.New()
-	p.Title.Text = "Node Probabilities"
-	p.Y.Label.Text = "Probability"
-
-	nodeIDs := utils.Map(t, func(i temp) string {
-		return i.label
-	})
-
-	// Calculate bar width based on the number of points
-	plotWidth := 16 * vg.Inch
-	barWidth := plotWidth / vg.Length(int(float64(len(probabilities0))*float64(1.2)))
-
-	// Create a bar chart
-	//w := vg.Points(20) // Width of the bars
-	bars0, err := plotter.NewBarChart(plotter.Values(probabilities0), barWidth)
-	if err != nil {
-		return "", pl.WrapError(err, "failed to create bar chart")
-	}
-	bars0.LineStyle.Width = vg.Length(0)  // No line around bars
-	bars0.Color = color.Color(firstColor) // Set the color of the bars
-
-	p.Add(bars0)
-
-	bars1, err := plotter.NewBarChart(plotter.Values(probabilities1), barWidth)
-	if err != nil {
-		return "", pl.WrapError(err, "failed to create bar chart")
-	}
-	bars1.LineStyle.Width = vg.Length(0)   // No line around bars
-	bars1.Color = color.Color(secondColor) // Set the color of the bars
-
-	p.Add(bars1)
-
-	// Create a bar chart for overlap
-	overlapBars, err := plotter.NewBarChart(plotter.Values(overlap_), barWidth)
-	if err != nil {
-		return "", pl.WrapError(err, "failed to create overlap bar chart")
-	}
-	overlapBars.LineStyle.Width = vg.Length(0) // No line around bars
-	overlapBars.Color = color.Color(overlap)   // Blue overlap
-
-	p.Add(overlapBars)
-
-	// Create a legend
-	p.Legend.Add("Scenario 0", bars0)
-	p.Legend.Add("Scenario 1", bars1)
-	p.Legend.Top = true // Position the legend at the top
-
-	p.NominalX(nodeIDs...) // Set node IDs as labels on the X-axis
-
-	// Save the plot to a PNG file
-	if err := p.Save(16*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
-		log.Panic(err)
-	}
-
-	return newName, nil
-}
-
 func createEpsilonDeltaPlot(ratios []float64) (string, error) {
 
 	//fmt.Printf("\nR=\\left[%s\\right]\n", strings.Join(utils.Map(ratios, func(ratio float64) string {
@@ -607,58 +528,12 @@ func createEpsilonDeltaPlot(ratios []float64) (string, error) {
 		}))
 	})
 
-	return guess(epsilonValues, deltaValues, "Epsilon", "Delta", "Epsilon-Delta Plot", "Epsilon-Delta", "epsilon_delta")
+	return guess(epsilonValues, deltaValues, "Epsilon", "Delta", "Values of ϵ and δ for which (ϵ,δ)-DP is Satisfied", "Epsilon-Delta", "epsilon_delta")
 }
 
 func createRatiosPlot(probR, probR_1 []float64) (string, error) {
 
-	return createDotPlot(probR_1, probR, "Probability of Being in Scenario 0", "Probability of Being in Scenario 1", "Epsilon-Delta Plot", "Trials", "epsilon_delta")
-}
-
-func createLinePlot(x []float64, y []float64, xAxis, yAxis, title, lineLabel, file string) (string, error) {
-	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
-
-	// Create a new plot
-	p := plot.New()
-	p.Title.Text = title
-	p.X.Label.Text = xAxis
-	p.Y.Label.Text = yAxis
-
-	pts := make(plotter.XYs, len(x))
-	for i := range pts {
-		pts[i].X = x[i]
-		pts[i].Y = y[i]
-	}
-
-	utils.Sort(pts, func(i, j plotter.XY) bool {
-		return i.X < j.X
-	})
-
-	line, points, err := plotter.NewLinePoints(pts)
-	if err != nil {
-		return "", err
-	}
-
-	// Customize the line and points
-	line.LineStyle.Width = vg.Points(5) // Thicker line
-	line.LineStyle.Color = firstColor
-	points.Shape = draw.CircleGlyph{}
-	points.Color = overlap
-	points.Radius = vg.Points(3)
-
-	p.Add(line, points)
-	p.Legend.Add(lineLabel, line, points)
-
-	//err := plotutil.AddLinePoints(p, lineLabel, pts)
-	//if err != nil {
-	//	return "", pl.WrapError(err, "failed to add line points")
-	//}
-
-	if err := p.Save(8*vg.Inch, 6*vg.Inch, "static"+newName); err != nil {
-		return "", pl.WrapError(err, "failed to save plot")
-	}
-
-	return newName, nil
+	return createDotPlot(probR_1, probR, "Probability of Being in Scenario 0", "Probability of Being in Scenario 1", "Observed Data Pairs", "A single trial: (pr[0], Pr[1])", "epsilon_delta")
 }
 
 func createDotPlot(x []float64, y []float64, xAxis, yAxis, title, lineLabel, file string) (string, error) {

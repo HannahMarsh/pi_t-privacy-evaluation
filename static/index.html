@@ -113,33 +113,9 @@
                         }
                     }
                     document.getElementById(`${key}-value`).textContent = values[slider.value];
-                   // console.log(key, values[slider.value])
-                   // console.log("slider.value", slider.value)
-
-                   // console.log("values", values)
-
-                    // if (key !== "ServerLoad") {
-                    //     // Display the initial value
-                    //     document.getElementById(`${key}-value`).textContent = values[slider.value];
-                    // } else {
-                    //     let L = parseFloat(getSliderValue("L"));
-                    //     let N = parseFloat(getSliderValue("N"));
-                    //     let serverLoad = ((N / L) / 3) * parseFloat(values[slider.value])
-                    //     document.getElementById(`${key}-value`).textContent = serverLoad.toString();
-                    // }
                 }
 
             }
-
-            // // Set the slider min, max, and step based on values
-            // const slider = document.getElementById("NumBuckets");
-            // slider.min = 5;
-            // slider.max = 100;
-            // slider.step = 10
-            // slider.value = 20; // Set to the first value initially
-            //
-            // // Display the initial value
-            // document.getElementById(`NumBuckets-value`).textContent = slider.value;
         }
 
         function getSliderValue(sliderId) {
@@ -255,7 +231,7 @@
                 <tr>
                     <td class="param-label">
                         <label for="X">X:</label><br>
-                        <span class="description">Fraction of corrupted nodes)</span>
+                        <span class="description">(Fraction of corrupted nodes)</span>
                     </td>
                     <td>
                         <input type="range" id="X" list="X-values" />
@@ -266,6 +242,33 @@
                     </td>
                 </tr>
             </table>
+            <br>
+            <h3>Description of Data Collection</h3>
+            <ul>
+                <li>In each run of the simulation with the above specified parameters, the network adversary calculates a probability of being in
+                    scenario 0 versus scenario 1 using the observed routing traffic (who and how many onions each client/node sends and receives each round.</li>
+                <li>For each run, we calculate the ratio between those two probabilities.</li>
+                <li>After conducting many trials, we compile a vector of these probability ratios.</li>
+                <li>If we want to satisfy (ϵ,δ)-differential privacy for parameters ϵ and δ, then at least a fraction (1 - δ) of all the trials must have a ratio less than e^ϵ </li>
+            </ul>
+            <h3>Epsilon-Delta Plot Description</h3>
+            <ul>
+                <li>This plot shows the relationship between the privacy loss parameter (ϵ) on the x-axis and the probability bound (δ) on the y-axis.</li>
+                <li><b><em>How to interpret a point on the plot:</b></em></li>
+                <ul style="background-color: #ffff99;">
+                    <li>
+                        A point (ϵ,δ) represents a specific setting where 𝜖 dictates how much privacy loss is tolerable, and δ quantifies how often that privacy loss was actually exceeded in all trials.
+                    </li>
+                    <li>For example, if we have a point at (ϵ=0.1, δ=0.3), this means that the ratio exceeded e^0.1 in no more than 30% of the trials. Thus at least 70% of trials was successfully bound by e^0.1</li>
+                </ul>
+                <li>
+                    The pink logistic curve was included in the plot to capture the observed trend in how δ varies with different ϵ values for the specified parameters.
+                </li>
+                <ul>
+                    <li>Note that it was calculated using logistic regression to find the best fit for the observed data.</li>
+                </ul>
+
+            </ul>
         </td>
         <td>
             <table>
