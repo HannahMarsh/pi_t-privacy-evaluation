@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/adversary/adversary"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync"
 )
 
@@ -25,12 +25,16 @@ type Node struct {
 
 func (n *Node) addSentTo(receiver *Node) {
 	//if receiver.Id != 2 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.SentTo = append(n.SentTo, receiver)
 	//}
 }
 
 func (n *Node) addReceivedFrom(sender *Node) {
 	//if sender.Id != 2 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.ReceivedFrom = append(n.ReceivedFrom, sender)
 	//}
 }
@@ -38,36 +42,84 @@ func (n *Node) addReceivedFrom(sender *Node) {
 type Rounds struct {
 	rounds map[int]map[int]*Node
 	p      adversary.P
+	mu     sync.RWMutex
 }
 
 func (r *Rounds) add(n *Node) {
+	r.mu.RLock()
 	if r.rounds == nil {
-		r.rounds = make(map[int]map[int]*Node)
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if r.rounds == nil {
+			r.rounds = make(map[int]map[int]*Node)
+		}
+		r.mu.Unlock()
+		r.mu.RLock()
 	}
 	if nodes, present := r.rounds[n.Round]; !present || nodes == nil {
-		r.rounds[n.Round] = make(map[int]*Node)
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if nodes, present = r.rounds[n.Round]; !present || nodes == nil {
+			r.rounds[n.Round] = make(map[int]*Node)
+		}
+		r.mu.Unlock()
+		r.mu.RLock()
 	}
+	r.mu.RUnlock()
+	r.mu.Lock()
 	r.rounds[n.Round][n.Id] = n
+	r.mu.Unlock()
 }
 
 func (r *Rounds) get(round int, id int) *Node {
+	r.mu.RLock()
 	if r.rounds == nil {
-		r.rounds = make(map[int]map[int]*Node)
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if r.rounds == nil {
+			r.rounds = make(map[int]map[int]*Node)
+		}
+		r.mu.Unlock()
+		r.mu.RLock()
 	}
 	if nodes, present := r.rounds[round]; !present || nodes == nil {
-		r.rounds[round] = make(map[int]*Node)
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if nodes, present = r.rounds[round]; !present || nodes == nil {
+			r.rounds[round] = make(map[int]*Node)
+		}
+		r.mu.Unlock()
+		r.mu.RLock()
 	}
-
-	return r.rounds[round][id]
+	defer r.mu.RLock()
+	if n, present := r.rounds[round][id]; !present {
+		return nil
+	} else {
+		return n
+	}
 }
 
 func (r *Rounds) getNodes(round int) []*Node {
+	r.mu.RLock()
 	if r.rounds == nil {
-		r.rounds = make(map[int]map[int]*Node)
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if r.rounds == nil {
+			r.rounds = make(map[int]map[int]*Node)
+		}
+		r.mu.Unlock()
+		r.mu.RLock()
 	}
 	if nodes, present := r.rounds[round]; !present || nodes == nil {
-		r.rounds[round] = make(map[int]*Node)
+		r.mu.RUnlock()
+		r.mu.Lock()
+		if nodes, present = r.rounds[round]; !present || nodes == nil {
+			r.rounds[round] = make(map[int]*Node)
+		}
+		r.mu.Unlock()
+		r.mu.RLock()
 	}
+	defer r.mu.RLock()
 	return utils.GetValues(r.rounds[round])
 }
 
@@ -78,7 +130,6 @@ func (r *Rounds) establishPath(path []int) {
 		return
 	}
 
-	// remove any corrupted node (since no mixing happens, we can think of onions as going straight through corrupted hops directly to the next destination)
 	nodes := utils.Map(utils.NewIntArray(0, len(path)), func(l int) *Node {
 		return r.get(l, path[l])
 	})
@@ -189,18 +240,34 @@ func createGraph(p adversary.P) *Rounds {
 		expectedToSend := ((float64(p.R) * p.ServerLoad) / float64(p.C)) - 1.0
 		pr := expectedToSend / float64(p.L)
 
+		var wg sync.WaitGroup
 		for i := 1; i <= p.L; i++ {
 			if rand.Float64() <= pr {
-				// create checkpoint onion
-				path2 := append(append([]int{clientId}, utils.Map(utils.NewIntArray(0, p.L), func(_ int) int {
-					return utils.RandomElement(relayIds)
-				})...), utils.RandomElement(clientIds))
+				wg.Add(1)
+				go func(i2 int) {
+					defer wg.Done()
+					// create checkpoint onion
+					path2 := append(append([]int{clientId}, utils.Map(utils.NewIntArray(0, p.L), func(_ int) int {
+						return utils.RandomElement(relayIds)
+					})...), utils.RandomElement(clientIds))
 
-				path2[i] = path[i]
+					path2[i2] = path[i2]
 
-				system.establishPath(path2)
+					if system.get(len(path2)-1, path2[len(path2)-1]) == nil {
+						ids := utils.RemoveDuplicates(utils.Map(system.getNodes(len(path2)-1), func(nn *Node) int { return nn.Id }))
+						sort.Ints(ids)
+						lookingFor := path2[len(path2)-1]
+						if !utils.ContainsElement(clientIds, lookingFor) {
+							pl.LogNewError("Client not found")
+						}
+						pl.LogNewError("Node not found")
+					}
+
+					system.establishPath(path2)
+				}(i)
 			}
 		}
+		wg.Wait()
 	}
 
 	initial := make(map[int]float64)
@@ -208,13 +275,6 @@ func createGraph(p adversary.P) *Rounds {
 		initial[clientId] = 0.0
 	}
 	initial[clientIds[1]] = 1.0
-
-	//// calculate probabilities
-	//for clientId, pr := range initial {
-	//	client := system.get(0, clientId)
-	//	client.Probability = pr
-	//
-	//}
 
 	// Calculate probabilities using actual node paths
 	for clientId, pr := range initial {
@@ -231,107 +291,22 @@ func createGraph(p adversary.P) *Rounds {
 			}
 
 			for _, nextNode := range node.SentTo {
+
+				if nextNode.Probability+node.Probability/float64(len(node.SentTo)) > 1.0 {
+					pl.LogNewError("Probability %f exceeds 1.0", nextNode.Probability+node.Probability/float64(len(node.SentTo)))
+				}
 				nextNode.Probability += node.Probability / float64(len(node.SentTo))
 			}
-			// Distribute probability to all nodes in the next round
-			nextNodes := system.getNodes(round + 1)
-			for _, nextNode := range nextNodes {
-				if !nextNode.IsCorrupted {
-					nextNode.Probability += node.Probability / float64(len(nextNodes))
-				}
-			}
+			//// Distribute probability to all nodes in the next round
+			//nextNodes := system.getNodes(round + 1)
+			//for _, nextNode := range nextNodes {
+			//	if !nextNode.IsCorrupted {
+			//		nextNode.Probability += node.Probability / float64(len(nextNodes))
+			//	}
+			//}
 		}
 	}
-
-	//length0 := howManyPaths2(system.get(0, clientIds[1]), system.get(p.L+1, clientIds[len(clientIds)-2]), p.L+1)
-	//length1 := howManyPaths2(system.get(0, clientIds[1]), system.get(p.L+1, clientIds[len(clientIds)-1]), p.L+1)
-	//
-	//system.get(p.L+1, clientIds[len(clientIds)-2]).Probability = float64(length0) / utils.Max(0.0000000000001, float64(length0+length1))
-	//system.get(p.L+1, clientIds[len(clientIds)-1]).Probability = float64(length1) / utils.Max(0.0000000000001, float64(length0+length1))
-	//
-	//return system
-
-	//// Propagate probabilities through the network
-	//for round := 0; round <= system.p.L; round++ {
-	//	nodes := system.getNodes(round)
-	//	for _, node := range nodes {
-	//		if node.Probability == 0 {
-	//			continue // Skip nodes with zero probability
-	//		}
-	//		// Distribute probability to all nodes in the next round
-	//		nextNodes := system.getNodes(round + 1)
-	//		for _, nextNode := range nextNodes {
-	//			if !nextNode.IsCorrupted {
-	//				nextNode.Probability += node.Probability / float64(len(nextNodes))
-	//			}
-	//		}
-	//	}
-	//}
-	//
 	return system
-}
-
-// propagateProbabilityFromNode propagates probabilities from a specific node, bypassing corrupted nodes
-func propagateProbabilityFromNode(node *Node) {
-	//var wg sync.WaitGroup
-
-	for _, nextNode := range utils.RemoveDuplicates(node.SentTo) {
-
-		count := utils.Count(node.SentTo, nextNode)
-
-		//node.mu.RLock()
-		if node.Probability > 0 && len(node.SentTo) > 0 {
-			//node.mu.RUnlock()
-			//wg.Add(1)
-			// Calculate probability for non-corrupted next nodes
-			//go func(nextNode, node *Node) {
-			//defer wg.Done()
-			//nextNode.mu.Lock()
-			nextNode.Probability += node.Probability * (float64(count) / float64(len(node.SentTo)))
-			//nextNode.mu.Unlock()
-			//node.mu.RUnlock()
-			propagateProbabilityFromNode(nextNode)
-			//}(nextNode, node)
-		}
-	}
-	//wg.Wait()
-}
-
-func howManyPaths2(node1, node2 *Node, length int) float64 {
-
-	var cache map[*Node]float64
-
-	var howManyPaths func(node1, node2 *Node, length int) float64
-
-	howManyPaths = func(node1, node2 *Node, length int) float64 {
-		if cache == nil {
-			cache = make(map[*Node]float64)
-		}
-		if n, present := cache[node1]; present {
-			return n
-		}
-
-		// Only return 1 if node1 is already node2, otherwise return 0
-		if node1 == node2 {
-			return 1
-		}
-		if length == 0 {
-			return 0
-		}
-
-		paths := float64(0)
-		for _, nextNode := range node1.SentTo {
-			if nextNode == node2 {
-				paths += 0.00000000000000000001
-			} else {
-				paths += howManyPaths(nextNode, node2, length-1)
-			}
-		}
-		cache[node1] = paths
-		return paths
-	}
-
-	return howManyPaths(node1, node2, length)
 }
 
 func (r *Rounds) getProb0() float64 {
@@ -339,7 +314,7 @@ func (r *Rounds) getProb0() float64 {
 }
 
 func (r *Rounds) getProb1() float64 {
-	return r.get(r.p.L+1, r.p.C-2).Probability
+	return r.get(r.p.L+1, r.p.C).Probability
 }
 
 func (r *Rounds) getRatio() float64 {
@@ -348,58 +323,6 @@ func (r *Rounds) getRatio() float64 {
 	}
 	return r.getProb0() / r.getProb1()
 }
-
-func (r *Rounds) displayProbs() {
-	getName := func(id int) string {
-		name := fmt.Sprintf("N%d", id-r.p.C)
-		if id < r.p.C {
-			name = fmt.Sprintf("C%d", id)
-		}
-		return name
-	}
-
-	// Display probabilities for demonstration
-	for round := 0; round <= r.p.L+1; round++ {
-		nodes := r.getNodes(round)
-		utils.Sort(nodes, func(a, b *Node) bool {
-			return a.Id < b.Id
-		})
-		fmt.Printf("Round %d:\n", round)
-		for _, node := range nodes {
-			name := getName(node.Id)
-			corruptedStr := "(Corrupted)"
-			if !node.IsCorrupted {
-				corruptedStr = "           "
-			}
-			sentTo := utils.Map(node.SentTo, func(n *Node) string {
-				return getName(n.Id)
-			})
-			sort.Strings(sentTo)
-			fmt.Printf("%s %s - Probability: %.4f\t sentTo: [%s]\n", name, corruptedStr, node.Probability, strings.Join(sentTo, ", "))
-		}
-		fmt.Println()
-	}
-}
-
-//func run(p adversary.P, numRUns int) *adversary.V {
-//	P0 := make([]float64, numRUns)
-//	P1 := make([]float64, numRUns)
-//	ratios := make([]float64, numRUns)
-//
-//	for i := 0; i < numRUns; i++ {
-//		system := createGraph(p)
-//		P0[i] = system.getProb0()
-//		P1[i] = system.getProb1()
-//		ratios[i] = system.getRatio()
-//	}
-//	return &adversary.V{
-//		P:      p,
-//		Pr0:    P0,
-//		Pr1:    P1,
-//		Ratios: ratios,
-//	}
-//
-//}
 
 func run(p adversary.P, numRuns int) *adversary.V {
 	P0 := make([]float64, numRuns)
@@ -468,14 +391,19 @@ func run(p adversary.P, numRuns int) *adversary.V {
 
 func main() {
 
-	C := flag.Int("C", 250, "Number of clients")
-	R := flag.Int("R", 50, "Number of relays")
-	X := flag.Float64("X", 0.9, "Fraction of corrupted relays")
-	serverLoad := flag.Float64("serverLoad", 60.0, "Server load, i.e. the expected number of onions processed per node per node")
-	L := flag.Int("L", 75, "Number of rounds")
+	C := flag.Int("C", 10000, "Number of clients")
+	R := flag.Int("R", 5000, "Number of relays")
+	X := flag.Float64("X", 0.5, "Fraction of corrupted relays")
+	serverLoad := flag.Float64("serverLoad", 150.0, "Server load, i.e. the expected number of onions processed per node per node")
+	L := flag.Int("L", 100, "Number of rounds")
 	numRuns := flag.Int("numRuns", 1, "Number of runs")
 
 	flag.Parse()
+
+	if int(*serverLoad) > int(float64(*L)*float64(*C)/float64(*R)) {
+		fmt.Printf("Server load %d too high. Reduce server load to %d.\n", int(*serverLoad), int(float64(*L)*float64(*C)/float64(*R)))
+		return
+	}
 
 	// Debug: Print parsed values
 	//fmt.Printf("Parsed flags: C=%d, R=%d, serverLoad=%.1f, X=%.1f, L=%d, numRuns=%d\n", *C, *R, *serverLoad, *X, *L, *numRuns)

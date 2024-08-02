@@ -16,7 +16,9 @@ import (
 
 // logisticFunction defines the logistic function with parameters mu and s.
 func logisticFunction(x, mu, s float64) float64 {
-	return 1.0 / (1.0 + math.Exp(-(x-mu)/s))
+	//return 1.0 / (1.0 + math.Exp(-(x-mu)/s))
+	// Use 1 - 1 / (1 + exp(-((x-mu)/s)))
+	return 1.0 - 1.0/(1.0+math.Exp(-(x-mu)/s))
 }
 
 // residual calculates the residuals between the observed and predicted values.
@@ -130,6 +132,7 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 	p.Add(points)
 	p.Legend.Add(lineLabel, points)
 	p.Legend.Add(fmt.Sprintf("(trend) 1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
+	p.Legend.Top = true // Align legend to the top
 
 	// Save the plot to a PNG file
 	if err := p.Save(8*vg.Inch, 6*vg.Inch, "static"+newName); err != nil {

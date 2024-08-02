@@ -114,7 +114,11 @@ func DropFromRight[T any](elements []T, n int) []T {
 
 func RandomElement[T any](elements []T) (element T) {
 	index := rng.Intn(len(elements))
-	return elements[index]
+	el := elements[index]
+	if index < 0 || index >= len(elements) {
+		panic("RandomElement: element not found in the array")
+	}
+	return el
 }
 
 func Min[T constraints.Ordered](a, b T) T {

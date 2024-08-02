@@ -25,11 +25,11 @@ type View struct {
 //	}
 
 func GetRatio(v View) float64 {
-	if v.ProbR == 0.0 {
-		v.ProbR = 0.000001
+	if v.ProbR_1 == 0.0 {
+		v.ProbR_1 = 0.000001
 	}
 
-	return v.ProbR_1 / v.ProbR
+	return v.ProbR / v.ProbR_1
 
 }
 

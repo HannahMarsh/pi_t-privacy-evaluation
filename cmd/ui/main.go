@@ -194,7 +194,7 @@ func main() {
 	}
 
 	// Read the existing JSON file
-	filePath = "static/data2.json"
+	filePath = "static/data3.json"
 	fileContent, err = ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)
@@ -243,7 +243,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	go collectData(expectedValues, ctx)
+	//go collectData(expectedValues, ctx)
 
 	slog.Info("Starting server on :8200")
 	if err := server.ListenAndServe(); err != nil {
@@ -330,7 +330,7 @@ func packageData() {
 	}
 
 	// Write the updated JSON back to the file
-	if err = ioutil.WriteFile("static/data2.json", updatedJSON, 0644); err != nil {
+	if err = ioutil.WriteFile("static/data3.json", updatedJSON, 0644); err != nil {
 		slog.Error("failed to write file", err)
 		return
 	}
@@ -425,7 +425,9 @@ func plotView(v adversary.V, numBuckets int) (Images, error) {
 	ratios := v.Ratios
 	ratiosPDF := computeHistogram(ratios, numBuckets)
 
-	prConfidence, err := createFloatCDFPlot("ratio", ratiosPDF, "Ratio of Pr[0] Over Pr[1]", "Ratio", "Frequency (# of trials)")
+	meanRatio := utils.Mean(ratios)
+
+	prConfidence, err := createFloatCDFPlot("ratio", ratiosPDF, "Ratio of Pr[0] Over Pr[1] "+fmt.Sprintf("(mean=%f)", meanRatio), "Ratio", "Frequency (# of trials)")
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
@@ -521,7 +523,7 @@ func createEpsilonDeltaPlot(ratios []float64) (string, error) {
 	deltaValues := utils.Map(epsilonValues, func(epsilon float64) float64 {
 		bound := math.Pow(math.E, epsilon)
 		return utils.Mean(utils.Map(ratios, func(ratio float64) float64 {
-			if ratio < bound {
+			if ratio >= bound {
 				return 1.0
 			}
 			return 0.0
@@ -531,9 +533,12 @@ func createEpsilonDeltaPlot(ratios []float64) (string, error) {
 	return guess(epsilonValues, deltaValues, "Epsilon", "Delta", "Values of ϵ and δ for which (ϵ,δ)-DP is Satisfied", "Epsilon-Delta", "epsilon_delta")
 }
 
-func createRatiosPlot(probR, probR_1 []float64) (string, error) {
+func createRatiosPlot(prob0, prob1 []float64) (string, error) {
 
-	return createDotPlot(probR_1, probR, "Probability of Being in Scenario 0", "Probability of Being in Scenario 1", "Observed Data Pairs", "A single trial: (pr[0], Pr[1])", "epsilon_delta")
+	mean0 := utils.Mean(prob0)
+	mean1 := utils.Mean(prob1)
+
+	return createDotPlot(prob1, prob0, "Probability of Being in Scenario 0 "+fmt.Sprintf("(mean=%f", mean0), "Probability of Being in Scenario 1 "+fmt.Sprintf("(mean=%f", mean1), "Observed Data Pairs", "A single trial: (pr[0], Pr[1])", "epsilon_delta")
 }
 
 func createDotPlot(x []float64, y []float64, xAxis, yAxis, title, lineLabel, file string) (string, error) {

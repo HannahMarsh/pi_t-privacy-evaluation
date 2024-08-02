@@ -113,6 +113,10 @@
                         }
                     }
                     document.getElementById(`${key}-value`).textContent = values[slider.value];
+                    document.getElementById("note").textContent =  `
+                    We have the following constraints: L < R <= C and (N / n) <= (C * L) / R.
+                    `
+
                 }
 
             }
@@ -152,8 +156,8 @@
             <table class="params">
                 <tr>
                     <td class="param-label">
-                        <label for="N">n:</label><br>
-                        <span class="description">(number of nodes)</span>
+                        <label for="N">R:</label><br>
+                        <span class="description">(Number of relays)</span>
                     </td>
                     <td>
                         <input type="range" id="N" list="N-values" />
@@ -165,8 +169,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="R">r:</label><br>
-                        <span class="description">(number of clients)</span>
+                        <label for="R">C:</label><br>
+                        <span class="description">(Number of clients)</span>
                     </td>
                     <td>
                         <input type="range" id="R" list="R-values" />
@@ -178,7 +182,7 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="ServerLoad">N / n:</label><br>
+                        <label for="ServerLoad">x = N / n:</label><br>
                         <span class="description">(server load: number of onions processed per node per round)</span>
                     </td>
                     <td>
@@ -243,6 +247,7 @@
                 </tr>
             </table>
             <br>
+            <p id="note">Note that </p>
             <h3>Description of Data Collection</h3>
             <ul>
                 <li>In each run of the simulation with the above specified parameters, the network adversary calculates a probability of being in
