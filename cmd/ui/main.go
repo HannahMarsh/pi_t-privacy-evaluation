@@ -12,7 +12,9 @@ import (
 	"golang.org/x/exp/slog"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
+	"gonum.org/v1/plot/vg/draw"
 	"image/color"
 	"io/ioutil"
 	"log"
@@ -269,7 +271,9 @@ func handleExpectedValues(w http.ResponseWriter, r *http.Request) {
 }
 
 type Images struct {
-	Ratios string `json:"ratios_img"`
+	Ratios       string `json:"ratios_img"`
+	EpsilonDelta string `json:"epsilon_delta_img"`
+	RatiosPlot   string `json:"ratios_plot_img"`
 }
 
 func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
@@ -310,8 +314,20 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
 
+	epDelta, err := createEpsilonDeltaPlot(ratios)
+	if err != nil {
+		return Images{}, pl.WrapError(err, "failed to create CDF plot")
+	}
+
+	ratiosPlot, err := createRatiosPlot(append(utils.Map(v0, view.GetProbR), utils.Map(v1, view.GetProbR)...), append(utils.Map(v0, view.GetProbR_1), utils.Map(v1, view.GetProbR_1)...))
+	if err != nil {
+		return Images{}, pl.WrapError(err, "failed to create CDF plot")
+	}
+
 	return Images{
-		Ratios: prConfidence,
+		Ratios:       prConfidence,
+		EpsilonDelta: epDelta,
+		RatiosPlot:   ratiosPlot,
 	}, nil
 }
 
@@ -479,6 +495,111 @@ func createPlot(file string, probabilities0, probabilities1 []float64) (string, 
 	// Save the plot to a PNG file
 	if err := p.Save(16*vg.Inch, 4*vg.Inch, "static"+newName); err != nil {
 		log.Panic(err)
+	}
+
+	return newName, nil
+}
+
+func createEpsilonDeltaPlot(ratios []float64) (string, error) {
+
+	//fmt.Printf("\nR=\\left[%s\\right]\n", strings.Join(utils.Map(ratios, func(ratio float64) string {
+	//	return fmt.Sprintf("%.7f", ratio)
+	//}), ","))
+
+	epsilonValues := utils.Map(ratios, func(ratio float64) float64 {
+		return math.Log(ratio)
+	})
+
+	deltaValues := utils.Map(epsilonValues, func(epsilon float64) float64 {
+		bound := math.Pow(math.E, epsilon)
+		return utils.Mean(utils.Map(ratios, func(ratio float64) float64 {
+			if ratio < bound {
+				return 1.0
+			}
+			return 0.0
+		}))
+	})
+
+	return guess(epsilonValues, deltaValues, "Epsilon", "Delta", "Epsilon-Delta Plot", "Epsilon-Delta", "epsilon_delta")
+}
+
+func createRatiosPlot(probR, probR_1 []float64) (string, error) {
+
+	return createDotPlot(probR_1, probR, "Probability of Being in Scenario 0", "Probability of Being in Scenario 1", "Epsilon-Delta Plot", "Trials", "epsilon_delta")
+}
+
+func createLinePlot(x []float64, y []float64, xAxis, yAxis, title, lineLabel, file string) (string, error) {
+	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
+
+	// Create a new plot
+	p := plot.New()
+	p.Title.Text = title
+	p.X.Label.Text = xAxis
+	p.Y.Label.Text = yAxis
+
+	pts := make(plotter.XYs, len(x))
+	for i := range pts {
+		pts[i].X = x[i]
+		pts[i].Y = y[i]
+	}
+
+	utils.Sort(pts, func(i, j plotter.XY) bool {
+		return i.X < j.X
+	})
+
+	line, points, err := plotter.NewLinePoints(pts)
+	if err != nil {
+		return "", err
+	}
+
+	// Customize the line and points
+	line.LineStyle.Width = vg.Points(5) // Thicker line
+	line.LineStyle.Color = firstColor
+	points.Shape = draw.CircleGlyph{}
+	points.Color = overlap
+	points.Radius = vg.Points(3)
+
+	p.Add(line, points)
+	p.Legend.Add(lineLabel, line, points)
+
+	//err := plotutil.AddLinePoints(p, lineLabel, pts)
+	//if err != nil {
+	//	return "", pl.WrapError(err, "failed to add line points")
+	//}
+
+	if err := p.Save(8*vg.Inch, 6*vg.Inch, "static"+newName); err != nil {
+		return "", pl.WrapError(err, "failed to save plot")
+	}
+
+	return newName, nil
+}
+
+func createDotPlot(x []float64, y []float64, xAxis, yAxis, title, lineLabel, file string) (string, error) {
+	newName := fmt.Sprintf("/plots/%s_%d.png", file, time.Now().UnixNano()/int64(time.Millisecond))
+
+	// Create a new plot
+	p := plot.New()
+	p.Title.Text = title
+	p.X.Label.Text = xAxis
+	p.Y.Label.Text = yAxis
+
+	pts := make(plotter.XYs, len(x))
+	for i := range pts {
+		pts[i].X = x[i]
+		pts[i].Y = y[i]
+	}
+
+	utils.Sort(pts, func(i, j plotter.XY) bool {
+		return i.X < j.X
+	})
+
+	err := plotutil.AddScatters(p, lineLabel, pts)
+	if err != nil {
+		return "", pl.WrapError(err, "failed to add line points")
+	}
+
+	if err := p.Save(8*vg.Inch, 6*vg.Inch, "static"+newName); err != nil {
+		return "", pl.WrapError(err, "failed to save plot")
 	}
 
 	return newName, nil

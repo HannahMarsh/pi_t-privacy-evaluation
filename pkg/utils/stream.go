@@ -3,6 +3,7 @@ package utils
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"github.com/HannahMarsh/PrettyLogger"
 	"math/rand"
 	"runtime"
@@ -286,6 +287,11 @@ func Filter[V any](values []V, condition func(V) bool) []V {
 	return filteredValues
 }
 
+func Mean[T Number](values []T) float64 {
+	sum := Sum(values)
+	return toFloat64(sum) / float64(len(values))
+}
+
 func CompareArrays[T comparable](a, b []T) (bool, int) {
 	if a == nil && b == nil {
 		return true, -1
@@ -306,6 +312,41 @@ func CompareArrays[T comparable](a, b []T) (bool, int) {
 
 type Number interface {
 	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64 | complex64 | complex128
+}
+
+func toFloat64[T Number](n T) float64 {
+	switch v := any(n).(type) {
+	case int:
+		return float64(v)
+	case int8:
+		return float64(v)
+	case int16:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case uint:
+		return float64(v)
+	case uint8:
+		return float64(v)
+	case uint16:
+		return float64(v)
+	case uint32:
+		return float64(v)
+	case uint64:
+		return float64(v)
+	case float32:
+		return float64(v)
+	case float64:
+		return v
+	case complex64:
+		return float64(real(v)) // Considering only the real part
+	case complex128:
+		return real(v) // Considering only the real part
+	default:
+		panic(fmt.Sprintf("unsupported type: %T", v))
+	}
 }
 
 func Sum[T Number](values []T) T {

@@ -14,9 +14,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 )
 
 var expectedValues view.ExpectedValues
@@ -27,6 +29,9 @@ var mu sync.RWMutex
 func main() {
 	// Define command-line flags
 	logLevel := flag.String("log-level", "debug", "Log level")
+	from_ := flag.Int("from", 40, "from")
+	to_ := flag.Int("to", 50, "to")
+
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
 
@@ -67,13 +72,13 @@ func main() {
 		}
 	}
 
-	slog.Info("", "num runs:", numTImes)
-
-	from := 2
-	to := 15
+	from := *from_
+	to := *to_
 	index := -1
 
-	wp := executor.NewWorkerPool()
+	slog.Info("", "num runs:", numTImes, "from", from, "to", to)
+
+	wp := executor.NewWorkerPoolWithMax(8)
 
 	err, allData = getData("static/data.json")
 	if err != nil {
@@ -138,9 +143,30 @@ func main() {
 		})
 	}
 
-	wp.Wait()
+	// Create a channel to receive OS signals
+	sigChan := make(chan os.Signal, 1)
+	// Relay incoming signals to sigChan
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	// Start a goroutine to handle signals
+	go func() {
+		sig := <-sigChan
+		fmt.Printf("Received signal: %s\n", sig)
+		packageData()
+		wp.Stop()
+	}()
+
+	wp.Wait()
+	packageData()
+
+	wp.Stop()
+}
+
+func packageData() {
 	// Marshal the updated struct back into JSON
+	mu.Lock()
+	defer mu.Unlock()
+
 	updatedJSON, err := json.MarshalIndent(allData, "", "  ")
 	if err != nil {
 		slog.Error("failed to marshal JSON", err)

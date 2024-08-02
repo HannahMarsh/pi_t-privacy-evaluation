@@ -33,6 +33,14 @@ func GetRatio(v View) float64 {
 
 }
 
+func GetProbR(v View) float64 {
+	return v.ProbR
+}
+
+func GetProbR_1(v View) float64 {
+	return v.ProbR_1
+}
+
 type ExpectedValues struct {
 	N          []int     `json:"N"`
 	R          []int     `json:"R"`
