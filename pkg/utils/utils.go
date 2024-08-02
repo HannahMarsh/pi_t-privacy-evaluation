@@ -11,7 +11,6 @@ import (
 	rng "math/rand"
 	"os"
 	"sort"
-	"time"
 )
 
 // ref: https://www.thorsten-hans.com/check-if-application-is-running-in-docker-container/
@@ -111,10 +110,10 @@ func DropFromRight[T any](elements []T, n int) []T {
 	return elements[:len(elements)-n]
 }
 
-var r = rng.New(rng.NewSource(time.Now().UnixNano()))
+//var r = rng.New(rng.NewSource(time.Now().UnixNano()))
 
 func RandomElement[T any](elements []T) (element T) {
-	index := r.Intn(len(elements))
+	index := rng.Intn(len(elements))
 	return elements[index]
 }
 
@@ -170,7 +169,7 @@ func RandomSubset[T any](array []T, size int) []T {
 	if size >= len(elements) {
 		return elements
 	}
-	r.Shuffle(len(elements), func(i, j int) {
+	rng.Shuffle(len(elements), func(i, j int) {
 		elements[i], elements[j] = elements[j], elements[i]
 	})
 	return elements[:size]

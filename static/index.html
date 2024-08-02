@@ -102,14 +102,21 @@
                         } else if (key === "NumRuns") {
                             slider.value = values.length - 1; // Set to the last value initially
                         } else if (key === "N") {
-                            slider.Value = Math.floor(((values.length - 1) * 0.25));
+                            slider.value = Math.floor(((values.length - 1) * 0.25));
                         } else if (key === "R" || key === "ServerLoad" || key === "L") {
-                            slider.Value = values.length - 1;
+                            slider.value = values.length - 1;
+                        } else if (key === "X") {
+                            slider.value = Math.floor(((values.length - 1) * 0.5));
+                            console.log(Math.floor(((values.length - 1) * 0.5)))
                         } else {
                             slider.value = 0; // Set to the first value initially
                         }
                     }
                     document.getElementById(`${key}-value`).textContent = values[slider.value];
+                   // console.log(key, values[slider.value])
+                   // console.log("slider.value", slider.value)
+
+                   // console.log("values", values)
 
                     // if (key !== "ServerLoad") {
                     //     // Display the initial value
@@ -243,6 +250,19 @@
                     </td>
                     <td class="param-value">
                         <span id="NumBuckets-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="X">X:</label><br>
+                        <span class="description">Fraction of corrupted nodes)</span>
+                    </td>
+                    <td>
+                        <input type="range" id="X" list="X-values" />
+                        <datalist id="X-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="X-value" class="slider-value"></span>
                     </td>
                 </tr>
             </table>

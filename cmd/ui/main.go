@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
 	pl "github.com/HannahMarsh/PrettyLogger"
+	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/adversary/adversary"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/cmd/view"
-	"github.com/HannahMarsh/pi_t-privacy-evaluation/internal/interfaces"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
@@ -21,17 +22,18 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 )
 
-var allData view.AllData
 var expectedValues view.ExpectedValues
-var defaults interfaces.Params
 
 var firstColor = color.RGBA{R: 217, G: 156, B: 201, A: 255}
 var secondColor = color.RGBA{R: 173, G: 202, B: 237, A: 255}
 var overlap = color.RGBA{R: 143, G: 106, B: 176, A: 255}
+
+var cache map[adversary.P]*adversary.V = make(map[adversary.P]*adversary.V)
 
 func main() {
 
@@ -62,62 +64,62 @@ func main() {
 		return
 	}
 
-	// Read the existing JSON file
-	filePath = "static/data.json"
-	fileContent, err = ioutil.ReadFile(filePath)
-	if err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
-		return
-	}
-
-	// Unmarshal the JSON content into a struct
-	if err := json.Unmarshal(fileContent, &allData); err != nil {
-		fmt.Printf("Error unmarshaling JSON: %v\n", err)
-		return
-	}
-
-	slog.Info("Getting values of N...")
-	expectedValues.N = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-		return d.Params.N
-	}))
-	utils.SortOrdered(expectedValues.N)
-	defaults.N = expectedValues.N[0]
-	slog.Info("Got values of N", "N", expectedValues.N)
-	expectedValues.R = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-		return d.Params.R
-	}))
-	utils.SortOrdered(expectedValues.R)
-	defaults.R = expectedValues.R[0]
-	slog.Info("Geot values of R", "R", expectedValues.R)
-	expectedValues.ServerLoad = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-		return int(d.Params.ServerLoad)
-	}))
-	utils.SortOrdered(expectedValues.ServerLoad)
-	defaults.ServerLoad = expectedValues.ServerLoad[0]
-	slog.Info("Got values of ServerLoad", "ServerLoad", expectedValues.ServerLoad)
-	expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
-		return d.Params.L
-	}))
-	utils.SortOrdered(expectedValues.L)
-	defaults.L = expectedValues.L[0]
-	slog.Info("Got values of L", "L", expectedValues.L)
-
-	slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
-	expectedValues.NumRuns = utils.Filter(utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
-		return len(d.Views)
-	}))+1), func(i int) bool {
-		return i%(10) == 0
-	})
-	defaults.Scenario = expectedValues.Scenario[0]
-	utils.SortOrdered(expectedValues.NumRuns)
-	slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
-
-	expectedValues.NumBuckets = utils.RemoveDuplicates(expectedValues.NumBuckets)
-	utils.SortOrdered(expectedValues.NumBuckets)
-
-	slog.Info("Got values of NumBuckets", "NumBuckets", expectedValues.NumBuckets)
-
-	slog.Info("All data collected")
+	//// Read the existing JSON file
+	//filePath = "static/data.json"
+	//fileContent, err = ioutil.ReadFile(filePath)
+	//if err != nil {
+	//	fmt.Printf("Error reading file: %v\n", err)
+	//	return
+	//}
+	//
+	//// Unmarshal the JSON content into a struct
+	//if err := json.Unmarshal(fileContent, &allData); err != nil {
+	//	fmt.Printf("Error unmarshaling JSON: %v\n", err)
+	//	return
+	//}
+	//
+	//slog.Info("Getting values of N...")
+	//expectedValues.N = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
+	//	return d.Params.N
+	//}))
+	//utils.SortOrdered(expectedValues.N)
+	//defaults.N = expectedValues.N[0]
+	//slog.Info("Got values of N", "N", expectedValues.N)
+	//expectedValues.R = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
+	//	return d.Params.R
+	//}))
+	//utils.SortOrdered(expectedValues.R)
+	//defaults.R = expectedValues.R[0]
+	//slog.Info("Geot values of R", "R", expectedValues.R)
+	//expectedValues.ServerLoad = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
+	//	return int(d.Params.ServerLoad)
+	//}))
+	//utils.SortOrdered(expectedValues.ServerLoad)
+	//defaults.ServerLoad = expectedValues.ServerLoad[0]
+	//slog.Info("Got values of ServerLoad", "ServerLoad", expectedValues.ServerLoad)
+	//expectedValues.L = utils.RemoveDuplicates(utils.Map(allData.Data, func(d view.Data) int {
+	//	return d.Params.L
+	//}))
+	//utils.SortOrdered(expectedValues.L)
+	//defaults.L = expectedValues.L[0]
+	//slog.Info("Got values of L", "L", expectedValues.L)
+	//
+	//slog.Info("Got values of Scenario", "Scenario", expectedValues.Scenario)
+	//expectedValues.NumRuns = utils.Filter(utils.NewIntArray(1, utils.MaxOver(utils.Map(allData.Data, func(d view.Data) int {
+	//	return len(d.Views)
+	//}))+1), func(i int) bool {
+	//	return i%(10) == 0
+	//})
+	//defaults.Scenario = expectedValues.Scenario[0]
+	//utils.SortOrdered(expectedValues.NumRuns)
+	//slog.Info("Got values of NumRuns", "NumRuns", expectedValues.NumRuns)
+	//
+	//expectedValues.NumBuckets = utils.RemoveDuplicates(expectedValues.NumBuckets)
+	//utils.SortOrdered(expectedValues.NumBuckets)
+	//
+	//slog.Info("Got values of NumBuckets", "NumBuckets", expectedValues.NumBuckets)
+	//
+	//slog.Info("All data collected")
 
 	// Start HTTP server
 	// Serve static files from the "static" directory
@@ -140,13 +142,12 @@ func withHeaders(h http.Handler) http.Handler {
 }
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {
-	p := interfaces.Params{
-		N:          getIntQueryParam(r, "N"),
-		R:          getIntQueryParam(r, "R"),
-		ServerLoad: getIntQueryParam(r, "ServerLoad"),
+	p := adversary.P{
+		C:          getIntQueryParam(r, "R"),
+		R:          getIntQueryParam(r, "N"),
+		ServerLoad: float64(getIntQueryParam(r, "ServerLoad")),
 		L:          getIntQueryParam(r, "L"),
 		X:          getFloatQueryParam(r, "X"),
-		Scenario:   getIntQueryParam(r, "Scenario"),
 	}
 	numRuns := getIntQueryParam(r, "NumRuns")
 	numBuckets := getIntQueryParam(r, "NumBuckets")
@@ -157,27 +158,126 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 		numBuckets = 15
 	}
 
-	v := find(p)
-	v0 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
-		return data.Params.Scenario == 0
-	}), func(data view.Data) []view.View {
-		return data.Views
-	})
-	v1 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
-		return data.Params.Scenario == 1
-	}), func(data view.Data) []view.View {
-		return data.Views
-	})
+	var v *adversary.V
 
-	if len(v0) > numRuns {
-		v0 = v0[:utils.Max(0, utils.Min(len(v0), numRuns))]
+	if d, present := cache[p]; present && d != nil {
+		v = d
+	} else {
+		// Convert parameters to strings
+		CStr := strconv.Itoa(p.C)
+		RStr := strconv.Itoa(p.R)
+		serverLoadStr := strconv.FormatFloat(p.ServerLoad, 'f', 1, 64)
+		XStr := strconv.FormatFloat(p.X, 'f', 1, 64)
+		LStr := strconv.Itoa(p.L)
+		numRunsStr := strconv.Itoa(numRuns)
+
+		// Create the command
+		//cmd := exec.Command("go", "run", "cmd/adversary/main.go", "-C", CStr, "-R", RStr, "-serverLoad", xStr, "-X", XStr, "-L", LStr, "-numRuns", numRunsStr)
+
+		cmd := exec.Command("go", "run", "cmd/adversary/main.go",
+			"-C", CStr,
+			"-R", RStr,
+			"-serverLoad", serverLoadStr,
+			"-X", XStr,
+			"-L", LStr,
+			"-numRuns", numRunsStr,
+		)
+
+		// Debug: Print command
+		fmt.Printf("Executing: go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s\n", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr)
+
+		// Set up pipes for stdout and stderr
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			slog.Error("failed to get stdout pipe", err)
+		}
+
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			slog.Error("failed to get stderr pipe", err)
+		}
+
+		// Start the command
+		if err := cmd.Start(); err != nil {
+			slog.Error("failed to start command", err)
+		}
+
+		var outputBuf, errorBuf []byte
+		done := make(chan error)
+
+		// Read stdout in a separate goroutine
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			for scanner.Scan() {
+				line := scanner.Text()
+				outputBuf = append(outputBuf, line...)
+				//slog.Info("stdout", "line", line)
+			}
+			if err := scanner.Err(); err != nil {
+				slog.Error("error reading stdout", err)
+			}
+		}()
+
+		// Read stderr in a separate goroutine
+		go func() {
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				line := scanner.Text()
+				errorBuf = append(errorBuf, line...)
+				pl.LogNewError(line)
+			}
+			if err := scanner.Err(); err != nil {
+				slog.Error("error reading stderr", err)
+			}
+		}()
+
+		// Wait for the command to finish
+		go func() {
+			done <- cmd.Wait()
+		}()
+
+		err = <-done
+		if err != nil {
+			slog.Error("Command execution failed", err)
+		} else {
+			slog.Info("Success")
+		}
+
+		var vv adversary.V
+
+		err = json.Unmarshal(outputBuf, &vv)
+		if err != nil {
+			slog.Error("Failed to unmarshall", err)
+		} else {
+			v = &vv
+			//slog.Info("", "", v.P)
+		}
+
+		cache[p] = v
 	}
 
-	if len(v1) > numRuns {
-		v1 = v1[:utils.Max(0, utils.Min(len(v0), numRuns))]
-	}
+	//
+	//v := find(p)
+	//v0 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
+	//	return data.Params.Scenario == 0
+	//}), func(data view.Data) []view.View {
+	//	return data.Views
+	//})
+	//v1 := utils.FlatMap(utils.Filter(v, func(data view.Data) bool {
+	//	return data.Params.Scenario == 1
+	//}), func(data view.Data) []view.View {
+	//	return data.Views
+	//})
+	//
+	//if len(v0) > numRuns {
+	//	v0 = v0[:utils.Max(0, utils.Min(len(v0), numRuns))]
+	//}
+	//
+	//if len(v1) > numRuns {
+	//	v1 = v1[:utils.Max(0, utils.Min(len(v0), numRuns))]
+	//}
 
-	images, err := plotView(v0, v1, numBuckets)
+	images, err := plotView(v, numBuckets)
 	if err != nil {
 		slog.Error("failed to plot view", err)
 		http.Error(w, "Failed to plot view", http.StatusInternalServerError)
@@ -190,62 +290,63 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func find(p interfaces.Params) []view.Data {
-
-	v := allData.Data
-
-	if v1 := utils.Filter(v, func(data view.Data) bool {
-		return data.Params.N == p.N
-	}); len(v1) > 0 {
-		v = v1
-	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-		return data.Params.N == defaults.N
-	}); len(v1) > 0 {
-		v = v1
-	}
-
-	if v1 := utils.Filter(v, func(data view.Data) bool {
-		return data.Params.R == p.R
-	}); len(v1) > 0 {
-		v = v1
-	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-		return data.Params.R == defaults.R
-	}); len(v1) > 0 {
-		v = v1
-	}
-
-	if v1 := utils.Filter(v, func(data view.Data) bool {
-		return data.Params.L == p.L
-	}); len(v1) > 0 {
-		v = v1
-	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-		return data.Params.L == defaults.L
-	}); len(v1) > 0 {
-		v = v1
-	}
-
-	if v1 := utils.Filter(v, func(data view.Data) bool {
-		return data.Params.ServerLoad == p.ServerLoad
-	}); len(v1) > 0 {
-		v = v1
-	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-		return data.Params.ServerLoad == defaults.ServerLoad
-	}); len(v1) > 0 {
-		v = v1
-	}
-
-	if v1 := utils.Filter(v, func(data view.Data) bool {
-		return data.Params.X == p.X
-	}); len(v1) > 0 {
-		v = v1
-	} else if v1 = utils.Filter(v, func(data view.Data) bool {
-		return data.Params.X == defaults.X
-	}); len(v1) > 0 {
-		v = v1
-	}
-
-	return v
-}
+//
+//func find(p interfaces.Params) []view.Data {
+//
+//	v := allData.Data
+//
+//	if v1 := utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.N == p.N
+//	}); len(v1) > 0 {
+//		v = v1
+//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.N == defaults.N
+//	}); len(v1) > 0 {
+//		v = v1
+//	}
+//
+//	if v1 := utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.R == p.R
+//	}); len(v1) > 0 {
+//		v = v1
+//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.R == defaults.R
+//	}); len(v1) > 0 {
+//		v = v1
+//	}
+//
+//	if v1 := utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.L == p.L
+//	}); len(v1) > 0 {
+//		v = v1
+//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.L == defaults.L
+//	}); len(v1) > 0 {
+//		v = v1
+//	}
+//
+//	if v1 := utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.ServerLoad == p.ServerLoad
+//	}); len(v1) > 0 {
+//		v = v1
+//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.ServerLoad == defaults.ServerLoad
+//	}); len(v1) > 0 {
+//		v = v1
+//	}
+//
+//	if v1 := utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.X == p.X
+//	}); len(v1) > 0 {
+//		v = v1
+//	} else if v1 = utils.Filter(v, func(data view.Data) bool {
+//		return data.Params.X == defaults.X
+//	}); len(v1) > 0 {
+//		v = v1
+//	}
+//
+//	return v
+//}
 
 func getIntQueryParam(r *http.Request, name string) int {
 	value, err := strconv.Atoi(r.URL.Query().Get(name))
@@ -276,16 +377,7 @@ type Images struct {
 	RatiosPlot   string `json:"ratios_plot_img"`
 }
 
-func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
-	if len(v0) == 0 && len(v1) == 0 {
-		return Images{}, pl.NewError("no views to plot")
-	}
-	//probabilities0 := computeAverages(utils.Map(v0, func(v view.View) float64 {
-	//return v.ProbR
-	//}))
-	//probabilities1 := computeAverages(utils.Map(v1, func(v view.View) float64 {
-	//return v.ProbR_1
-	//}))
+func plotView(v *adversary.V, numBuckets int) (Images, error) {
 
 	// Read the contents of the directory
 	contents, err := ioutil.ReadDir("static/plots")
@@ -301,12 +393,7 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 		}
 	}
 
-	//prImage, err := createPlot("Probabilities", probabilities0, probabilities1)
-	//if err != nil {
-	//	return Images{}, pl.WrapError(err, "failed to create plot")
-	//}
-
-	ratios := append(utils.Map(v0, view.GetRatio), utils.Map(v1, view.GetRatio)...)
+	ratios := v.Ratios
 	ratiosPDF := computeHistogram(ratios, numBuckets)
 
 	prConfidence, err := createFloatCDFPlot("ratio", ratiosPDF, "Ratio of ProbR_1 Over Prob R", "Ratio", "Frequency (# of trials)")
@@ -319,7 +406,7 @@ func plotView(v0, v1 []view.View, numBuckets int) (Images, error) {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
 
-	ratiosPlot, err := createRatiosPlot(append(utils.Map(v0, view.GetProbR), utils.Map(v1, view.GetProbR)...), append(utils.Map(v0, view.GetProbR_1), utils.Map(v1, view.GetProbR_1)...))
+	ratiosPlot, err := createRatiosPlot(v.Pr0, v.Pr1)
 	if err != nil {
 		return Images{}, pl.WrapError(err, "failed to create CDF plot")
 	}
