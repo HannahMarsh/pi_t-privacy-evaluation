@@ -131,7 +131,7 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 
 	p.Add(points)
 	p.Legend.Add(lineLabel, points)
-	p.Legend.Add(fmt.Sprintf("(trend) 1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
+	p.Legend.Add(fmt.Sprintf("(trend) -1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
 	p.Legend.Top = true // Align legend to the top
 
 	// Save the plot to a PNG file

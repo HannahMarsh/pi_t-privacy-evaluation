@@ -11,11 +11,11 @@ import (
 
 func main() {
 
-	C := flag.Int("C", 2000, "Number of clients")
-	R := flag.Int("R", 1000, "Number of relays")
+	C := flag.Int("C", 1000, "Number of clients")
+	R := flag.Int("R", 1, "Number of relays")
 	X := flag.Float64("X", 0.0, "Fraction of corrupted relays")
-	serverLoad := flag.Float64("serverLoad", 150.0, "Server load, i.e. the expected number of onions processed per relay per relay")
-	L := flag.Int("L", 100, "Number of rounds")
+	serverLoad := flag.Float64("serverLoad", 100000.0, "Server load, i.e. the expected number of onions processed per relay per relay")
+	L := flag.Int("L", 1, "Number of rounds")
 	numRuns := flag.Int("numRuns", 1, "Number of runs")
 
 	flag.Parse()

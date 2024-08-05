@@ -268,6 +268,8 @@ func collectData(values ExpectedValues, ctx context.Context) {
 	lValues := values.L
 	xValues := values.X
 
+	numRunsPerCall := 10
+
 	index := 0
 
 	type runData struct {
@@ -276,6 +278,8 @@ func collectData(values ExpectedValues, ctx context.Context) {
 	}
 
 	ps := make([]data2.Parameters, 0)
+
+	runs := 500
 
 	for _, r := range nValues {
 		for _, c := range rValues {
@@ -294,12 +298,12 @@ func collectData(values ExpectedValues, ctx context.Context) {
 							X:          x,
 						}
 						d, present := getData(p)
-						if !present || len(d.Ratios) < 100 {
-							num := 100
+						if !present || len(d.Ratios) < runs {
+							num := runs
 							if d.Ratios != nil {
-								num = 100 - len(d.Ratios)
+								num = runs - len(d.Ratios)
 							}
-							for i := 0; i < num; i++ {
+							for i := 0; i < num; i += numRunsPerCall {
 								index++
 								ps = append(ps, p)
 							}
@@ -316,7 +320,7 @@ func collectData(values ExpectedValues, ctx context.Context) {
 
 	var wg sync.WaitGroup
 
-	total := float64(index) / 100.0
+	total := float64(index) / float64(runs)
 	index = 0
 
 	for _, p := range ps {
@@ -332,7 +336,7 @@ func collectData(values ExpectedValues, ctx context.Context) {
 		wg.Add(1)
 		go func(pp data2.Parameters, i int) {
 			defer wg.Done()
-			calcData(pp, 1)
+			calcData(pp, numRunsPerCall)
 			slog.Info(fmt.Sprintf("Done with  %f%%", float64(i)/total))
 		}(p, index)
 	}

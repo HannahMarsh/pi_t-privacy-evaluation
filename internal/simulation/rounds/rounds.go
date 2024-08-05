@@ -280,7 +280,7 @@ func (r *Rounds) CalculateProbabilities(initial map[int]float64) {
 				continue // Skip nodes with zero probability
 			}
 			for _, nextNode := range n.SentTo {
-				if nextNode.Probability+n.Probability/float64(len(n.SentTo)) > 1.0 {
+				if nextNode.Probability+n.Probability/float64(len(n.SentTo)) > 1.000000001 {
 					pl.LogNewError("Probability %f exceeds 1.0", nextNode.Probability+n.Probability/float64(len(n.SentTo)))
 				}
 				nextNode.Probability += n.Probability / float64(len(n.SentTo))
