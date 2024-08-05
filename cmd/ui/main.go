@@ -39,100 +39,115 @@ var overlap = color.RGBA{R: 143, G: 106, B: 176, A: 255}
 var cache map[string]data = make(map[string]data)
 var mu sync.RWMutex
 
-func getOrCalcData(p adversary.P, numRuns int) adversary.V {
-	if v, present := getData(p); !present {
-		// Convert parameters to strings
-		CStr := strconv.Itoa(p.C)
-		RStr := strconv.Itoa(p.R)
-		serverLoadStr := strconv.FormatFloat(p.ServerLoad, 'f', 1, 64)
-		XStr := strconv.FormatFloat(p.X, 'f', 1, 64)
-		LStr := strconv.Itoa(p.L)
-		numRunsStr := strconv.Itoa(numRuns)
-
-		cmd := exec.Command("go", "run", "cmd/adversary/main.go",
-			"-C", CStr,
-			"-R", RStr,
-			"-serverLoad", serverLoadStr,
-			"-X", XStr,
-			"-L", LStr,
-			"-numRuns", numRunsStr,
-		)
-
-		// Debug: Print command
-		//fmt.Printf("Executing: go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s\n", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr)
-
-		// Set up pipes for stdout and stderr
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			slog.Error("failed to get stdout pipe", err)
+func getOrCalcData(p adversary.P, numRuns int) (v adversary.V) {
+	var present bool
+	if v, present = getData(p); !present {
+		v = calcData(p, numRuns)
+	}
+	if len(v.Ratios) > numRuns {
+		return adversary.V{
+			P:      p,
+			Pr0:    v.Pr0[:numRuns],
+			Pr1:    v.Pr1[:numRuns],
+			Ratios: v.Ratios[:numRuns],
 		}
+	}
+	return v
+}
 
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			slog.Error("failed to get stderr pipe", err)
-		}
+func calcDataEachRunSeparately(p adversary.P, numRuns int) (v adversary.V) {
+	for i := 0; i < numRuns; i++ {
+		v = calcData(p, 1)
+	}
+	return v
+}
 
-		// Start the command
-		if err := cmd.Start(); err != nil {
-			slog.Error("failed to start command", err)
-		}
+func calcData(p adversary.P, numRuns int) (v adversary.V) {
 
-		var outputBuf, errorBuf []byte
-		done := make(chan error)
+	// Convert parameters to strings
+	CStr := strconv.Itoa(p.C)
+	RStr := strconv.Itoa(p.R)
+	serverLoadStr := strconv.FormatFloat(p.ServerLoad, 'f', 1, 64)
+	XStr := strconv.FormatFloat(p.X, 'f', 1, 64)
+	LStr := strconv.Itoa(p.L)
+	numRunsStr := strconv.Itoa(numRuns)
 
-		// Read stdout in a separate goroutine
-		go func() {
-			scanner := bufio.NewScanner(stdout)
-			for scanner.Scan() {
-				line := scanner.Text()
-				outputBuf = append(outputBuf, line...)
-				//slog.Info("stdout", "line", line)
-			}
-			if err := scanner.Err(); err != nil {
-				slog.Error("error reading stdout", err)
-			}
-		}()
+	cmd := exec.Command("go", "run", "cmd/adversary/main.go",
+		"-C", CStr,
+		"-R", RStr,
+		"-serverLoad", serverLoadStr,
+		"-X", XStr,
+		"-L", LStr,
+		"-numRuns", numRunsStr,
+	)
 
-		// Read stderr in a separate goroutine
-		go func() {
-			scanner := bufio.NewScanner(stderr)
-			for scanner.Scan() {
-				line := scanner.Text()
-				errorBuf = append(errorBuf, line...)
-				pl.LogNewError(line)
-			}
-			if err := scanner.Err(); err != nil {
-				slog.Error("error reading stderr", err)
-			}
-		}()
+	// Debug: Print command
+	//fmt.Printf("Executing: go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s\n", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr)
 
-		// Wait for the command to finish
-		go func() {
-			done <- cmd.Wait()
-		}()
-
-		err = <-done
-		if err != nil {
-			slog.Error("Command execution failed", err)
-			return v
-		} else {
-			slog.Info(fmt.Sprintf("Done with go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr))
-		}
-
-		var vv adversary.V
-
-		err = json.Unmarshal(outputBuf, &vv)
-		if err != nil {
-			slog.Error("Failed to unmarshall", err)
-		} else {
-			v = vv
-		}
-
-		setData(p, v)
+	// Set up pipes for stdout and stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		slog.Error("failed to get stdout pipe", err)
 	}
 
-	v, _ := getData(p)
-	return v
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		slog.Error("failed to get stderr pipe", err)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		slog.Error("failed to start command", err)
+	}
+
+	var outputBuf, errorBuf []byte
+	done := make(chan error)
+
+	// Read stdout in a separate goroutine
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			outputBuf = append(outputBuf, line...)
+			//slog.Info("stdout", "line", line)
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("error reading stdout", err)
+		}
+	}()
+
+	// Read stderr in a separate goroutine
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			errorBuf = append(errorBuf, line...)
+			pl.LogNewError(line)
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("error reading stderr", err)
+		}
+	}()
+
+	// Wait for the command to finish
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	err = <-done
+	if err != nil {
+		slog.Error("Command execution failed", err)
+		return v
+	} else {
+		slog.Info(fmt.Sprintf("Done with go run cmd/adversary/main.go -C %s -R %s -serverLoad %s -X %s -L %s -numRuns %s", CStr, RStr, serverLoadStr, XStr, LStr, numRunsStr))
+	}
+
+	err = json.Unmarshal(outputBuf, &v)
+	if err != nil {
+		slog.Error("Failed to unmarshall", err)
+	}
+
+	return setData(p, v)
 }
 
 func getData(p adversary.P) (v adversary.V, present bool) {
@@ -145,18 +160,33 @@ func getData(p adversary.P) (v adversary.V, present bool) {
 	return v, false
 }
 
-func hasData(p adversary.P) bool {
+func hasData(p adversary.P, numRuns int) bool {
 	mu.RLock()
 	defer mu.RUnlock()
-	_, present := cache[p.Hash()]
-	return present
+	d, present := cache[p.Hash()]
+	return present && d.V.Ratios != nil && len(d.V.Ratios) >= numRuns
 }
-func setData(p adversary.P, v adversary.V) {
+func setData(p adversary.P, v adversary.V) adversary.V {
 	mu.Lock()
 	defer mu.Unlock()
-	cache[p.Hash()] = data{
-		P: p,
-		V: v,
+	if d, present := cache[p.Hash()]; present && d.V.Ratios != nil && len(d.V.Ratios) > 0 {
+		r := adversary.V{
+			P:      p,
+			Pr0:    append(d.V.Pr0, v.Pr0...),
+			Pr1:    append(d.V.Pr1, v.Pr1...),
+			Ratios: append(d.V.Ratios, v.Ratios...),
+		}
+		cache[p.Hash()] = data{
+			P: p,
+			V: r,
+		}
+		return r
+	} else {
+		cache[p.Hash()] = data{
+			P: p,
+			V: v,
+		}
+		return v
 	}
 }
 
@@ -243,7 +273,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	//go collectData(expectedValues, ctx)
+	go collectData(expectedValues, ctx)
 
 	slog.Info("Starting server on :8200")
 	if err := server.ListenAndServe(); err != nil {
@@ -261,6 +291,11 @@ func collectData(values view.ExpectedValues, ctx context.Context) {
 	xValues := values.X
 
 	index := 0
+
+	type runData struct {
+		param   adversary.P
+		numRuns int
+	}
 
 	ps := make([]adversary.P, 0)
 
@@ -280,9 +315,16 @@ func collectData(values view.ExpectedValues, ctx context.Context) {
 							L:          l,
 							X:          x,
 						}
-						if !hasData(p) {
-							index++
-							ps = append(ps, p)
+						d, present := getData(p)
+						if !present || len(d.Ratios) < 100 {
+							num := 100
+							if d.Ratios != nil {
+								num = 100 - len(d.Ratios)
+							}
+							for i := 0; i < num; i++ {
+								index++
+								ps = append(ps, p)
+							}
 						}
 					}
 				}
@@ -302,26 +344,31 @@ func collectData(values view.ExpectedValues, ctx context.Context) {
 	for _, p := range ps {
 		if err := ctx.Err(); err != nil {
 			fmt.Printf("Stopping data collection: %v\n", err)
+			wg.Wait()
 			return
 		}
-		if !hasData(p) {
-			index++
-			if index%5 == 0 {
-				wg.Wait()
-			}
-			wg.Add(1)
-			go func(pp adversary.P, i int) {
-				defer wg.Done()
-				getOrCalcData(pp, 100)
-				slog.Info(fmt.Sprintf("Done with %f%%", float64(i)/total))
-			}(p, index)
+		index++
+		if index%5 == 0 {
+			wg.Wait()
 		}
+		wg.Add(1)
+		go func(pp adversary.P, i int) {
+			defer wg.Done()
+			calcData(pp, 1)
+			slog.Info(fmt.Sprintf("Done with  %f%%", float64(i)/total))
+		}(p, index)
 	}
+	wg.Wait()
 	slog.Info("All data collected")
 }
 
 func packageData() {
 	// Marshal the updated struct back into JSON
+
+	slog.Info("Packaging data")
+
+	mu.RLock()
+	defer mu.RUnlock()
 
 	updatedJSON, err := json.MarshalIndent(cache, "", "  ")
 	if err != nil {
@@ -363,6 +410,11 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := getOrCalcData(p, numRuns)
+
+	if v.Ratios == nil || len(v.Ratios) == 0 {
+		http.Error(w, "No data available for the given parameters", http.StatusNotFound)
+		return
+	}
 
 	images, err := plotView(v, numBuckets)
 	if err != nil {

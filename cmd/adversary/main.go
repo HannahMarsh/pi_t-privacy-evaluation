@@ -9,6 +9,7 @@ import (
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"golang.org/x/exp/slog"
 	"math/rand"
+	"os"
 	"sort"
 	"sync"
 )
@@ -217,9 +218,13 @@ func createGraph(p adversary.P) *Rounds {
 
 	for _, clientId := range clientIds {
 
-		path := append(append([]int{clientId}, utils.Map(utils.NewIntArray(0, p.L), func(_ int) int {
-			return utils.RandomElement(relayIds)
-		})...), utils.RandomElement(clientIds))
+		path := make([]int, p.L+2)
+
+		path[0] = clientId
+		for i := 1; i <= p.L; i++ {
+			path[i] = utils.RandomElement(relayIds)
+		}
+		path[p.L+1] = utils.RandomElement(clientIds)
 
 		if clientId == clientIds[0] {
 			path[len(path)-1] = clientIds[len(clientIds)-1]
@@ -247,9 +252,13 @@ func createGraph(p adversary.P) *Rounds {
 				go func(i2 int) {
 					defer wg.Done()
 					// create checkpoint onion
-					path2 := append(append([]int{clientId}, utils.Map(utils.NewIntArray(0, p.L), func(_ int) int {
-						return utils.RandomElement(relayIds)
-					})...), utils.RandomElement(clientIds))
+					path2 := make([]int, p.L+2)
+
+					path2[0] = clientId
+					for j := 1; j <= p.L; j++ {
+						path2[j] = utils.RandomElement(relayIds)
+					}
+					path2[p.L+1] = utils.RandomElement(clientIds)
 
 					path2[i2] = path[i2]
 
@@ -268,7 +277,10 @@ func createGraph(p adversary.P) *Rounds {
 			}
 		}
 		wg.Wait()
+
 	}
+
+	//slog.Info("here")
 
 	initial := make(map[int]float64)
 	for _, clientId := range clientIds {
@@ -391,9 +403,9 @@ func run(p adversary.P, numRuns int) *adversary.V {
 
 func main() {
 
-	C := flag.Int("C", 10000, "Number of clients")
-	R := flag.Int("R", 5000, "Number of relays")
-	X := flag.Float64("X", 0.5, "Fraction of corrupted relays")
+	C := flag.Int("C", 2000, "Number of clients")
+	R := flag.Int("R", 1000, "Number of relays")
+	X := flag.Float64("X", 0.0, "Fraction of corrupted relays")
 	serverLoad := flag.Float64("serverLoad", 150.0, "Server load, i.e. the expected number of onions processed per node per node")
 	L := flag.Int("L", 100, "Number of rounds")
 	numRuns := flag.Int("numRuns", 1, "Number of runs")
@@ -401,7 +413,8 @@ func main() {
 	flag.Parse()
 
 	if int(*serverLoad) > int(float64(*L)*float64(*C)/float64(*R)) {
-		fmt.Printf("Server load %d too high. Reduce server load to %d.\n", int(*serverLoad), int(float64(*L)*float64(*C)/float64(*R)))
+		pl.LogNewError(fmt.Sprintf("Server load %d too high. Reduce server load to %d.\n", int(*serverLoad), int(float64(*L)*float64(*C)/float64(*R))))
+		os.Exit(1)
 		return
 	}
 
