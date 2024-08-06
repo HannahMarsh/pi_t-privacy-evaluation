@@ -1,5 +1,7 @@
 # Evaluating Privacy of the $\Pi_t$ Protocol :tulip:
 
+- Stadium: [https://dl.acm.org/doi/pdf/10.1145/3132747.3132783](https://dl.acm.org/doi/pdf/10.1145/3132747.3132783)
+- Vuvuzela: [https://dl.acm.org/doi/pdf/10.1145/2815400.2815417](https://dl.acm.org/doi/pdf/10.1145/2815400.2815417)
 
 ## Introduction
 
