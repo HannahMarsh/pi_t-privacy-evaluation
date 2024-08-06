@@ -5,11 +5,11 @@ import (
 	pl "github.com/HannahMarsh/PrettyLogger"
 	"github.com/HannahMarsh/pi_t-privacy-evaluation/pkg/utils"
 	"gonum.org/v1/gonum/floats"
-	"gonum.org/v1/gonum/optimize"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
 	"gonum.org/v1/plot/vg/draw"
+	"image/color"
 	"math"
 	"time"
 )
@@ -54,6 +54,9 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 	p.Title.Text = title
 	p.X.Label.Text = xAxis
 	p.Y.Label.Text = yAxis
+	// Set the y-axis to logarithmic scale
+	p.Y.Scale = plot.LogScale{}
+	p.Y.Tick.Marker = plot.LogTicks{}
 
 	pts := make(plotter.XYs, len(observedX))
 	for i := range pts {
@@ -73,53 +76,51 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 		return xy.Y
 	})
 
-	//points, err := plotter.NewScatter(pts)
-	//if err != nil {
-	//	return "", err
-	//}
-	//points.Shape = draw.CircleGlyph{}
-	//points.Color = overlap
-	//points.Radius = vg.Points(3)
+	//// Initial guesses for mu and s
+	//initial := []float64{floats.Sum(observedX) / float64(len(observedX)), 1.0}
 	//
-	//p.Add(points)
-	//p.Legend.Add(lineLabel, points)
+	//// Define problem for optimization
+	//problem := optimize.Problem{
+	//	Func: func(p []float64) float64 {
+	//		return residual(p, observedX, observedY)
+	//	},
+	//}
+	//// Settings for optimization
+	//settings := optimize.Settings{
+	//	GradientThreshold: 1e-6,
+	//	FuncEvaluations:   100,
+	//	MajorIterations:   100,
+	//}
+	//
+	//// Perform the optimization
+	//result, err := optimize.Minimize(problem, initial, &settings, nil)
+	//if err != nil {
+	//	return "", pl.WrapError(err, "Failed to optimize: %v", err)
+	//}
+	//
+	//// Extract the optimized parameters
+	//mu, s := result.X[0], result.X[1]
+	//fmt.Printf("Estimated parameters: mu = %f, s = %f\n", mu, s)
+	//// Generate and plot the logistic curve
+	//logisticPts := generateLogisticPoints(mu, s, floats.Min(observedX), floats.Max(observedX), 100)
+	//line, err := plotter.NewLine(logisticPts)
+	//if err != nil {
+	//	return "", pl.WrapError(err, "Failed to create line plot: %v", err)
+	//}
+	//line.LineStyle.Width = vg.Points(5) // Thicker line
+	//line.LineStyle.Color = firstColor
+	//p.Add(line)
 
-	// Initial guesses for mu and s
-	initial := []float64{floats.Sum(observedX) / float64(len(observedX)), 1.0}
+	// Create a horizontal line at y = 0.0001
+	hline := plotter.NewFunction(func(x float64) float64 {
+		return 0.0001
+	})
+	hline.Color = secondColor
+	hline.Dashes = []vg.Length{vg.Points(2), vg.Points(2)} // Dotted line
+	hline.Width = vg.Points(1)
 
-	// Define problem for optimization
-	problem := optimize.Problem{
-		Func: func(p []float64) float64 {
-			return residual(p, observedX, observedY)
-		},
-	}
-
-	// Settings for optimization
-	settings := optimize.Settings{
-		GradientThreshold: 1e-6,
-		FuncEvaluations:   100,
-		MajorIterations:   100,
-	}
-
-	// Perform the optimization
-	result, err := optimize.Minimize(problem, initial, &settings, nil)
-	if err != nil {
-		return "", pl.WrapError(err, "Failed to optimize: %v", err)
-	}
-
-	// Extract the optimized parameters
-	mu, s := result.X[0], result.X[1]
-	fmt.Printf("Estimated parameters: mu = %f, s = %f\n", mu, s)
-
-	// Generate and plot the logistic curve
-	logisticPts := generateLogisticPoints(mu, s, floats.Min(observedX), floats.Max(observedX), 100)
-	line, err := plotter.NewLine(logisticPts)
-	if err != nil {
-		return "", pl.WrapError(err, "Failed to create line plot: %v", err)
-	}
-	line.LineStyle.Width = vg.Points(5) // Thicker line
-	line.LineStyle.Color = firstColor
-	p.Add(line)
+	// Add the horizontal line to the plot
+	p.Add(hline)
 
 	points, err := plotter.NewScatter(pts)
 	if err != nil {
@@ -130,8 +131,30 @@ func guess(observedX, observedY []float64, xAxis, yAxis, title, lineLabel, file 
 	points.Radius = vg.Points(3)
 
 	p.Add(points)
+
+	// Highlight the minimum point
+	minY := floats.Min(observedY)
+	minX := floats.Min(observedX)
+	for _, pt := range pts {
+		if pt.Y == minY {
+			minX = pt.X
+			break
+		}
+	}
+	minPt := plotter.XYs{{X: minX, Y: minY}}
+	minPoints, err := plotter.NewScatter(minPt)
+	if err != nil {
+		panic(err)
+	}
+	minPoints.Shape = draw.CircleGlyph{}
+	minPoints.Color = color.RGBA{R: 0, G: 255, B: 255, A: 255}
+	minPoints.Radius = vg.Points(4)
+
+	p.Add(minPoints)
+
 	p.Legend.Add(lineLabel, points)
-	p.Legend.Add(fmt.Sprintf("(trend) -1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
+	//p.Legend.Add(fmt.Sprintf("(trend) -1 / 1 + e^(-(ϵ+%f)/%f", mu, s), line)
+	p.Legend.Add(fmt.Sprintf("(e^ϵ = %f), (δ = 0)", math.Exp(minPt[0].X)), minPoints)
 	p.Legend.Top = true // Align legend to the top
 
 	// Save the plot to a PNG file

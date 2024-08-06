@@ -134,52 +134,26 @@ func (r *Rounds) addClients(clientIds []int) {
 }
 
 func (r *Rounds) Add(n *node.Node) {
-	r.mu.RLock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.rounds == nil {
-		r.mu.RUnlock()
-		r.mu.Lock()
-		if r.rounds == nil {
-			r.rounds = make(map[int]map[int]*node.Node)
-		}
-		r.mu.Unlock()
-		r.mu.RLock()
+		r.rounds = make(map[int]map[int]*node.Node)
 	}
 	if nodes, present := r.rounds[n.Round]; !present || nodes == nil {
-		r.mu.RUnlock()
-		r.mu.Lock()
-		if nodes, present = r.rounds[n.Round]; !present || nodes == nil {
-			r.rounds[n.Round] = make(map[int]*node.Node)
-		}
-		r.mu.Unlock()
-		r.mu.RLock()
+		r.rounds[n.Round] = make(map[int]*node.Node)
 	}
-	r.mu.RUnlock()
-	r.mu.Lock()
 	r.rounds[n.Round][n.Id] = n
-	r.mu.Unlock()
 }
 
 func (r *Rounds) Get(round int, id int) *node.Node {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if r.rounds == nil {
-		r.mu.RUnlock()
-		r.mu.Lock()
-		if r.rounds == nil {
-			r.rounds = make(map[int]map[int]*node.Node)
-		}
-		r.mu.Unlock()
-		r.mu.RLock()
+		return nil
 	}
 	if nodes, present := r.rounds[round]; !present || nodes == nil {
-		r.mu.RUnlock()
-		r.mu.Lock()
-		if nodes, present = r.rounds[round]; !present || nodes == nil {
-			r.rounds[round] = make(map[int]*node.Node)
-		}
-		r.mu.Unlock()
-		r.mu.RLock()
+		return nil
 	}
-	defer r.mu.RLock()
 	if n, present := r.rounds[round][id]; !present {
 		return nil
 	} else {
@@ -189,25 +163,13 @@ func (r *Rounds) Get(round int, id int) *node.Node {
 
 func (r *Rounds) GetNodes(round int) []*node.Node {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	if r.rounds == nil {
-		r.mu.RUnlock()
-		r.mu.Lock()
-		if r.rounds == nil {
-			r.rounds = make(map[int]map[int]*node.Node)
-		}
-		r.mu.Unlock()
-		r.mu.RLock()
+		return make([]*node.Node, 0)
 	}
 	if nodes, present := r.rounds[round]; !present || nodes == nil {
-		r.mu.RUnlock()
-		r.mu.Lock()
-		if nodes, present = r.rounds[round]; !present || nodes == nil {
-			r.rounds[round] = make(map[int]*node.Node)
-		}
-		r.mu.Unlock()
-		r.mu.RLock()
+		return make([]*node.Node, 0)
 	}
-	defer r.mu.RLock()
 	return utils.GetValues(r.rounds[round])
 }
 
@@ -254,6 +216,13 @@ func (r *Rounds) GetProb0() float64 {
 
 func (r *Rounds) GetProb1() float64 {
 	return r.Get(r.P.L+1, r.P.C).Probability
+	//min_ := 1000.0
+	//for i := 1; i <= r.P.C; i++ {
+	//	if r.Get(r.P.L+1, i).Probability < min_ {
+	//		min_ = r.Get(r.P.L+1, i).Probability
+	//	}
+	//}
+	//return min_
 }
 
 func (r *Rounds) GetRatio() float64 {

@@ -154,14 +154,28 @@ func createEpsilonDeltaPlot(ratios []float64) (string, error) {
 		return math.Log(ratio)
 	})
 
+	minDelta := 1.0
+
 	deltaValues := utils.Map(epsilonValues, func(epsilon float64) float64 {
 		bound := math.Pow(math.E, epsilon)
-		return utils.Mean(utils.Map(ratios, func(ratio float64) float64 {
-			if ratio >= bound {
+		fracThatExceeded := utils.Mean(utils.Map(ratios, func(ratio float64) float64 {
+			if ratio > bound {
 				return 1.0
 			}
 			return 0.0
 		}))
+		if fracThatExceeded > 0.0 && fracThatExceeded < minDelta {
+			minDelta = fracThatExceeded
+		}
+		return fracThatExceeded
+	})
+
+	deltaValues = utils.Map(deltaValues, func(delta float64) float64 {
+		if delta <= 0.0 {
+			return math.Max(0.0001, minDelta/2.0)
+		} else {
+			return delta
+		}
 	})
 
 	return guess(epsilonValues, deltaValues, "Epsilon", "Delta", "Values of ϵ and δ for which (ϵ,δ)-DP is Satisfied", "Epsilon-Delta", "epsilon_delta")

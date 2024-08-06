@@ -103,8 +103,12 @@
                             slider.value = values.length - 1; // Set to the last value initially
                         } else if (key === "N") {
                             slider.value = Math.floor(((values.length - 1) * 0.25));
-                        } else if (key === "R" || key === "ServerLoad" || key === "L") {
+                        } else if (key === "R") {
                             slider.value = values.length - 1;
+                        } else if (key === "ServerLoad") {
+                            slider.value = Math.floor(((values.length) * 0.4));
+                        } else if (key === "L") {
+                            slider.value = 0
                         } else if (key === "X") {
                             slider.value = Math.floor(((values.length - 1) * 0.5));
                             console.log(Math.floor(((values.length - 1) * 0.5)))
@@ -113,9 +117,6 @@
                         }
                     }
                     document.getElementById(`${key}-value`).textContent = values[slider.value];
-                    document.getElementById("note").textContent =  `
-                    We have the following constraints: L < R <= C and (N / n) <= (C * L) / R.
-                    `
 
                 }
 
@@ -182,8 +183,8 @@
                 </tr>
                 <tr>
                     <td class="param-label">
-                        <label for="ServerLoad">x = N / n:</label><br>
-                        <span class="description">(server load: number of onions processed per node per round)</span>
+                        <label for="ServerLoad">Serverload:</label><br>
+                        <span class="description">(number of onions processed <br>per node per round)</span>
                     </td>
                     <td>
                         <input type="range" id="ServerLoad" list="ServerLoad-values" />
@@ -205,6 +206,29 @@
                     <td class="param-value">
                         <span id="L-value" class="slider-value"></span>
                     </td>
+                </tr>
+                <tr>
+                    <td class="param-label">
+                        <label for="X">X:</label><br>
+                        <span class="description">(Fraction of corrupted nodes)</span>
+                    </td>
+                    <td>
+                        <input type="range" id="X" list="X-values" />
+                        <datalist id="X-values"></datalist>
+                    </td>
+                    <td class="param-value">
+                        <span id="X-value" class="slider-value"></span>
+                    </td>
+                </tr>
+                <tr>
+                </tr>
+            </table>
+            <table class="params">
+                <tr>
+                    <br>
+                    <br>
+                    <b>Display Settings</b>
+                    <br>
                 </tr>
                 <tr>
                     <td class="param-label">
@@ -232,22 +256,9 @@
                         <span id="NumBuckets-value" class="slider-value"></span>
                     </td>
                 </tr>
-                <tr>
-                    <td class="param-label">
-                        <label for="X">X:</label><br>
-                        <span class="description">(Fraction of corrupted nodes)</span>
-                    </td>
-                    <td>
-                        <input type="range" id="X" list="X-values" />
-                        <datalist id="X-values"></datalist>
-                    </td>
-                    <td class="param-value">
-                        <span id="X-value" class="slider-value"></span>
-                    </td>
-                </tr>
             </table>
             <br>
-            <p id="note">Note that </p>
+            <p id="note">  </p>
             <h3>Description of Data Collection</h3>
             <ul>
                 <li>In each run of the simulation with the above specified parameters, the network adversary calculates a probability of being in

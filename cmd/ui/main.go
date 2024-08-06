@@ -132,7 +132,8 @@ var mu sync.RWMutex
 func getOrCalcData(p data2.Parameters, numRuns int) (v data2.Result) {
 	var present bool
 	if v, present = getData(p); !present {
-		v = calcData(p, numRuns)
+		//v = calcData(p, numRuns)
+		return v
 	}
 	if len(v.Ratios) > numRuns {
 		return data2.Result{
@@ -268,44 +269,41 @@ func collectData(values ExpectedValues, ctx context.Context) {
 	lValues := values.L
 	xValues := values.X
 
-	numRunsPerCall := 10
+	numRunsPerCall := 1
 
 	index := 0
 
-	type runData struct {
-		param   data2.Parameters
-		numRuns int
-	}
-
 	ps := make([]data2.Parameters, 0)
 
-	runs := 500
+	runs := 100
 
 	for _, r := range nValues {
 		for _, c := range rValues {
 			for _, serverLoad := range serverLoadValues {
 				for _, l := range lValues {
 					for _, x := range xValues {
-						if err := ctx.Err(); err != nil {
-							fmt.Printf("Stopping data collection: %v\n", err)
-							return
-						}
-						p := data2.Parameters{
-							C:          c,
-							R:          r,
-							ServerLoad: float64(serverLoad),
-							L:          l,
-							X:          x,
-						}
-						d, present := getData(p)
-						if !present || len(d.Ratios) < runs {
-							num := runs
-							if d.Ratios != nil {
-								num = runs - len(d.Ratios)
+						if !((r == 1 && (x != 0.0 || l != 1)) || l > r || c <= r) {
+							if err := ctx.Err(); err != nil {
+								fmt.Printf("Stopping data collection: %v\n", err)
+								return
 							}
-							for i := 0; i < num; i += numRunsPerCall {
-								index++
-								ps = append(ps, p)
+							p := data2.Parameters{
+								C:          c,
+								R:          r,
+								ServerLoad: float64(serverLoad),
+								L:          l,
+								X:          x,
+							}
+							d, present := getData(p)
+							if !present || len(d.Ratios) < runs {
+								num := runs
+								if d.Ratios != nil {
+									num = runs - len(d.Ratios)
+								}
+								for i := 0; i < num; i += numRunsPerCall {
+									index++
+									ps = append(ps, p)
+								}
 							}
 						}
 					}
@@ -330,7 +328,7 @@ func collectData(values ExpectedValues, ctx context.Context) {
 			return
 		}
 		index++
-		if index%5 == 0 {
+		if index%3 == 0 {
 			wg.Wait()
 		}
 		wg.Add(1)
