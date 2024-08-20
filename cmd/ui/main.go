@@ -23,7 +23,7 @@ import (
 	"syscall"
 )
 
-var dataFile = "static/data3.json"
+var dataFile = "static/data.json"
 
 var expectedValues ExpectedValues
 
