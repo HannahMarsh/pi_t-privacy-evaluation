@@ -42,6 +42,7 @@ func main() {
 
 	// Define command-line flags
 	logLevel := flag.String("log-level", "debug", "Log level")
+	port := flag.Int("port", 8200, "Port to serve on")
 	flag.Usage = flag.PrintDefaults
 	flag.Parse()
 
@@ -82,7 +83,7 @@ func main() {
 	// Start HTTP server
 	// Create a new HTTP server with specific configurations
 	server := &http.Server{
-		Addr: ":8200",
+		Addr: fmt.Sprintf(":%d", *port),
 	}
 
 	// Serve static files from the "static" directory
@@ -118,7 +119,7 @@ func main() {
 
 	go collectData(expectedValues, ctx)
 
-	slog.Info("Starting server on :8200")
+	slog.Info(fmt.Sprintf("Starting server on http://localhost:%d", *port))
 	if err = server.ListenAndServe(); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("failed to start server", err)
